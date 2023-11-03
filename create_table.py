@@ -1,10 +1,12 @@
 import csv
 import sqlparse
+from bintrees import BinaryTree
 
 
 class CreateTable:
     def __init__(self):
         self.tables = {}
+        self.bplus_trees = {}
 
     def parse_create_command(self, command):
         # Parse the SQL command
@@ -72,5 +74,17 @@ class CreateTable:
             for row in reader:
                 self.tables[table_name].append(row)
 
+    def convert_data_type(self, table_schema):
+        for table_name, table_rows in self.tables.items():
+            for row in table_rows:
+                for column, column_type in table_schema[table_name].items():
+                    if column_type == 'INT':
+                        row[column] = int(row[column])
+                    elif column_type == 'FLOAT':
+                        row[column] = float(row[column])
 
-
+    def create_btree_index(self, table, primary_key):
+        index = BinaryTree()
+        for row in table:
+            index.insert(row[primary_key], row)
+        return index

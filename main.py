@@ -21,10 +21,6 @@ basicTable.populate_table_from_csv(table_name, 'test_data.csv')
 basicTable.populate_table_from_csv(table_name2, 'test_data2.csv')
 basicTable.populate_table_from_csv(table_name3, 'test_data3.csv')
 
-
-# Print the table
-print(basicTable.tables)
-
 table_schema = {
     'sushi': {
         'id': 'INT',
@@ -40,20 +36,22 @@ table_schema = {
     }
 }
 
-# the_tables = basicTable.tables
+# Adjust types
+basicTable.convert_data_type(table_schema)
 
-for table_name, table_rows in basicTable.tables.items():
-    for row in table_rows:
-        for column, column_type in table_schema[table_name].items():
-            if column_type == 'INT':
-                row[column] = int(row[column])
-            elif column_type == 'FLOAT':
-                row[column] = float(row[column])
+user_index = basicTable.create_btree_index(basicTable.tables['sushi'], 'id')
+# print(user_index)
 
-# Let's try to use SQLGlot
+user_with_id_1 = user_index.get(1)
+temp_tables = {}
+temp_tables['sushi'] = [user_with_id_1]
+
+print(temp_tables)
 
 
-# Schema is optional but doesn't hurt to include, we can clean it up later (create structure in object)
+# Print the table
+print(basicTable.tables)
+
 try:
     result = execute(
     """
@@ -67,8 +65,7 @@ try:
       ON i.sushi_id = s.id
     GROUP BY o.user_id
     """,
-    schema=table_schema,
-    tables=basicTable.tables,
+    tables=basicTable.tables
     )
     print(result)
 except Exception as e:
