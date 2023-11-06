@@ -3,61 +3,76 @@ from sqlglot.executor import execute
 
 basicTable = CreateTable()
 
-# Parsing the SQL CREATE command and initializing the table structure
-command = "CREATE TABLE sushi (id, price);"
-command2 = "CREATE TABLE order_items (sushi_id, order_id);"
-command3 = "CREATE TABLE orders (id, user_id);"
+# Parsing the SQL CREATE commands with constraints and initializing the table structure
+command = """
+CREATE TABLE sushi (
+    id INT NOT NULL,
+    price DECIMAL(5, 2) NOT NULL,
+    PRIMARY KEY (id)
+);
+"""
+command2 = """
+CREATE TABLE order_items (
+    sushi_id INT NOT NULL,
+    order_id INT NOT NULL,
+    PRIMARY KEY (sushi_id, order_id)
+);
+"""
+command3 = """
+CREATE TABLE orders (
+    id INT NOT NULL,
+    user_id INT NOT NULL,
+    PRIMARY KEY (id)
+);
+"""
 
-table_name, columns = basicTable.parse_create_command(command)
-table_name2, columns2 = basicTable.parse_create_command(command2)
-table_name3, columns3 = basicTable.parse_create_command(command3)
+table_name, schema = basicTable.parse_create_command(command)
+print(f"Parsed schema for {table_name}: {schema}")
+basicTable.initialize_table_structure(table_name, schema)
+table_name2, schema2 = basicTable.parse_create_command(command2)
+print(f"Parsed schema for {table_name2}: {schema2}")
+basicTable.initialize_table_structure(table_name2, schema2)
+table_name3, schema3 = basicTable.parse_create_command(command3)
+print(f"Parsed schema for {table_name3}: {schema3}")
+basicTable.initialize_table_structure(table_name3, schema3)
 
-basicTable.initialize_table_structure(table_name, columns)
-basicTable.initialize_table_structure(table_name2, columns2)
-basicTable.initialize_table_structure(table_name3, columns3)
+# Populate the tables with data from CSV files
 
-# Populate the table with data from a CSV file
-basicTable.populate_table_from_csv(table_name, 'test_data.csv')
-basicTable.populate_table_from_csv(table_name2, 'test_data2.csv')
-basicTable.populate_table_from_csv(table_name3, 'test_data3.csv')
+# ... [previous code]
 
-table_schema = {
-    'sushi': {
-        'id': 'INT',
-        'price': 'FLOAT'
-    },
-    'order_items': {
-        'sushi_id': 'INT',
-        'order_id': 'INT'
-    },
-    'orders': {
-        'id': 'INT',
-        'user_id': 'INT'
-    }
-}
+# Populate the tables with data from CSV files
+try:
+    basicTable.populate_table_from_csv(table_name, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data.csv')
+except ValueError as e:
+    print("Expected columns:", basicTable.table_schemas[table_name])
+    print("CSV columns:", basicTable.tables[table_name])
+    raise e
 
-# Adjust types
-basicTable.convert_data_type(table_schema)
+# ... [rest of the code]
 
-user_index = basicTable.create_btree_index(basicTable.tables['sushi'], 'id')
-# print(user_index)
+basicTable.populate_table_from_csv(table_name2, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data2.csv')
+basicTable.populate_table_from_csv(table_name3, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv')
 
-user_with_id_1 = user_index.get(1)
-temp_tables = {}
-temp_tables['sushi'] = [user_with_id_1]
+# Create B-tree indexes for tables with primary keys
+basicTable.create_btree_index(table_name)
+basicTable.create_btree_index(table_name2)
+basicTable.create_btree_index(table_name3)
 
-print(temp_tables)
+# Print the structure of all tables and schemas
+print("Tables:")
+for table, rows in basicTable.tables.items():
+    print(f"{table}: {rows}")
+print("\nSchemas:")
+for table, schema in basicTable.table_schemas.items():
+    print(f"{table}: {schema}")
 
-
-# Print the table
-print(basicTable.tables)
-
+# Example query using sqlglot to execute and fetch results
 try:
     result = execute(
     """
     SELECT
       o.user_id,
-      SUM(s.price) AS price
+      SUM(s.price * i.quantity) AS total_price
     FROM orders o
     JOIN order_items i
       ON o.id = i.order_id
@@ -67,7 +82,9 @@ try:
     """,
     tables=basicTable.tables
     )
+    print("\nQuery Results:")
     print(result)
 except Exception as e:
-    print(f"An Error occurred: {e}")
+    print(f"\nAn Error occurred: {e}")
+
 
