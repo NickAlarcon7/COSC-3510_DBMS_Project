@@ -33,7 +33,7 @@ TODO:
 - how to parse CREATE TABLE? - Use sqlglot.parse_one().key to figure out the leading sql command (i.e. CREATE TABLE, SELECT, etc.)
 - Use mo-sql-parsing to parse the schema definition and extract type and primary key/foreign key
 - Populate table with entities using LOAD and check for duplicates
-- Prove sqlglot optimizes nested loop vs sort-merge join. If sqlglot does not do nested loop, then we need to implement it ourselves.
+- sqlglot defaults to hash join. In the case of a join on two tables with both primary keys, we can create a temp tables by inserting one by one from the index, and then use the temp tables in the join. This is more efficient than hash join. The drawback is temporarily we would have three copies of the same data in memory. Another approach would be to add an ORDER BY
 
 THINGS TO CONSIDER:
 
