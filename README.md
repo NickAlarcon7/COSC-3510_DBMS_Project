@@ -16,12 +16,12 @@
   return: Returns a valid table structure for use in sqlglot executor
   )
 
-  - schemas - dictionary (
+- schemas - dictionary (
   key: table name - string, value: schema definition - dictionary
   return: Returns schema (data type, primary key, constraint)
   )
 
-  - index-tree - dictionary (
+- index-tree - dictionary (
   key: table name - string, value: index tree - AVL tree
   return: Returns a table with a single row 
   ) 
