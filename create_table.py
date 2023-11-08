@@ -1,9 +1,70 @@
 import csv
-import sqlparse
-from sqlparse.sql import IdentifierList, Identifier, Parenthesis, Function
-from sqlparse import tokens
-from sqlparse.tokens import Keyword, Token, Punctuation, DML, Whitespace, Literal, Name, Number
 from bintrees import BinaryTree
+
+{
+    "create table": {
+        "name": "sushi",
+        "columns": [
+            {"name": "id", "type": {"int": {}}, "nullable": False},
+            {"name": "price", "type": {"decimal": [5, 2]}, "nullable": False},
+        ],
+        "constraint": {"primary_key": {"columns": "id"}},
+    }
+}
+
+{
+    "sushi": [
+        {"id": {"type": "INT", "nullable": False, "primary_key": True}},
+        {"price": {"type": "INT", "nullable": False}},
+    ],
+}
+
+{
+    "create table": {
+        "name": "order_items",
+        "columns": [
+            {"name": "sushi_id", "type": {"int": {}}, "nullable": False},
+            {"name": "order_id", "type": {"int": {}}, "nullable": False},
+        ],
+        "constraint": [
+            {"primary_key": {"columns": ["sushi_id", "order_id"]}},
+            {
+                "foreign_key": {
+                    "columns": "sushi_id",
+                    "references": {"table": "sushi", "columns": "id"},
+                }
+            },
+            {
+                "foreign_key": {
+                    "columns": "order_id",
+                    "references": {"table": "orders", "columns": "id"},
+                }
+            },
+        ],
+    }
+}
+
+{
+    "select": [
+        {"value": "o.user_id"},
+        {"value": "i.order_id"},
+        {"value": "i.sushi_id"},
+    ],
+    "from": [{"value": "orders", "name": "o"}, {"value": "order_items", "name": "i"}],
+    "where": {"eq": ["o.id", "i.order_id"]},
+    "orderby": {"value": "i.sushi_id"},
+}
+
+{
+    "create table": {
+        "name": "orders",
+        "columns": [
+            {"name": "id", "type": {"int": {}}, "nullable": False},
+            {"name": "user_id", "type": {"int": {}}, "nullable": False},
+        ],
+        "constraint": {"primary_key": {"columns": "id"}},
+    }
+}
 
 
 class CreateTable:
@@ -12,133 +73,61 @@ class CreateTable:
         self.bplus_trees = {}
         self.table_schemas = {}
 
-    def parse_create_command(self, command):
-        parsed = sqlparse.parse(command)[0]
-        table_name = None
-        columns = {}
-        primary_key = []
+    def parse_create_command(self, table_definition):
+        table_name = table_definition["name"]
+        schema = []
 
-        # Tokenize and extract table name and columns
-        tokens = [token for token in parsed.tokens if not token.is_whitespace]
-        for i, token in enumerate(tokens):
-            if token.ttype is Keyword and token.value.upper() == 'TABLE':
-                table_name_token = tokens[i + 1]
-                if isinstance(table_name_token, Identifier):
-                    table_name = table_name_token.get_name()
-                else:
-                    raise TypeError(f"Unexpected token type {type(table_name_token)} for table name.")
-            elif isinstance(token, Parenthesis):
-                # Extract everything within the parenthesis
-                column_tokens = [t for t in token.tokens if not t.is_whitespace and not t.ttype is Punctuation]
-                # Handle column definitions and constraints within the parenthesis
-                columns, primary_key = self._extract_columns_and_constraints(column_tokens)
+        # TODO: handle when there is only one column
+        for column in table_definition["columns"]:
+            # create a temp entry to be added to the schema list
+            # only add "nullable" property if it is in column
+            temp = {column["name"]: {"type": column["type"]}}
+            if "nullable" in column:
+                temp[column["name"]]["nullable"] = column["nullable"]
+            schema.append(temp)
 
-        if not table_name or not columns:
-            raise ValueError("Table name or columns could not be parsed.")
+        # Next, add primary key and foreign key constraints
+        constraints = table_definition["constraint"]
+        # First, check if "constraint"'s value is a list or a dictionary
+        # if it is a list, then foreign key and primary key constraints are in the list
+        if type(constraints) is list:
+            for constraint in constraints:
+                # traverse through the schema list to find the column that matches the primary key
+                if "primary_key" in constraint:
+                    self.parse_key(schema, constraint, "primary_key")
+                # traverse through the schema list to find the column that matches the foreign key
+                if "foreign_key" in constraint:
+                    self.parse_key(schema, constraint, "foreign_key")
+        # if it is a dictionary, then there is only primary key constraint
+        elif type(constraints) is dict:
+            # traverse through the schema list to find the column that matches the primary key
+            self.parse_key(schema, constraints, "primary_key")
 
-        # Add primary key constraints to the columns
-        for pk in primary_key:
-            if pk in columns:
-                columns[pk]['constraints'].append('PRIMARY KEY')
+        print(f"Schema for {table_name}: {schema}")
+
+        return table_name, schema
+
+    # add primary key and foreign key constraints to the schema
+    def parse_key(self, schema, constraint, key_type):
+        key_columns = constraint[key_type]["columns"]
+
+        # TODO: handle when foreign key is multiple attributes
+        # traverse through the schema list to find the column that matches the primary key
+        for column in schema:
+            # check if there are multiple keys by checking the type
+            if type(key_columns) is list:
+                for key in key_columns:
+                    if key in column:
+                        column[key][key_type] = True
             else:
-                raise ValueError(f"Primary key column '{pk}' is not defined in the table.")
-
-        self.table_schemas[table_name] = columns
-        return table_name, columns
-
-    def _extract_columns_and_constraints(self, tokens):
-        columns = {}
-        primary_key = []
-        idx = 0
-
-        print(f"Extracting columns from tokens: {tokens}")
-
-        while idx < len(tokens):
-            token = tokens[idx]
-            if isinstance(token, IdentifierList):
-                for identifier in token.get_identifiers():
-                    # Since get_identifiers splits by comma, the datatype and constraints are part of the identifier
-                    # We need to collect all tokens related to one column before parsing
-                    if isinstance(identifier, Identifier) or isinstance(identifier, Function):
-                        column_tokens = [identifier] + tokens[idx + 1:]
-                        col_name, col_def = self._parse_column(column_tokens)
-                        columns[col_name] = col_def
-                        break  # Break after finding a full column definition
-            elif isinstance(token, Identifier) or isinstance(token, Function):
-                # Collect all tokens for this column until the next comma or end of tokens
-                column_tokens = []
-                while idx < len(tokens) and not tokens[idx].match(Punctuation, ','):
-                    column_tokens.append(tokens[idx])
-                    idx += 1
-                # Now parse the column using all its tokens
-                idx -= 1  # Adjust idx to point to the comma after collecting tokens
-                col_name, col_def = self._parse_column(column_tokens)
-                columns[col_name] = col_def
-            elif token.match(Keyword, "PRIMARY KEY"):
-                idx += 1  # Skip PRIMARY KEY token
-                pk_token = tokens[idx]
-                if isinstance(pk_token, Parenthesis):
-                    primary_key_tokens = pk_token.tokens[1:-1]  # Exclude the opening and closing parenthesis
-                    primary_key = self._parse_primary_key(primary_key_tokens)
-                    for pk_column in primary_key:
-                        if pk_column in columns:
-                            columns[pk_column]['constraints'].append('PRIMARY KEY')
-                        else:
-                            raise ValueError(f"Primary key column '{pk_column}' not found in columns list")
-            idx += 1
-
-        return columns, primary_key
-
-    def _parse_column(self, tokens):
-        # Initialize the column name, data type, and constraints
-        col_name = None
-        data_type = []
-        constraints = []
-
-        # Assuming the first token is the Identifier with the column name
-        col_name_token = tokens[0]
-        if isinstance(col_name_token, Identifier):
-            col_name = col_name_token.get_name()
-        else:
-            raise ValueError("First token must be an Identifier with the column name")
-
-        # Iterate over the rest of the tokens
-        for token in tokens[1:]:
-            if isinstance(token, Function):
-                # Handle data type for DECIMAL(5, 2) as Function
-                data_type = [
-                    token.get_real_name() + ''.join(t.value for t in token.tokens if t.ttype is not Whitespace)]
-            elif token.ttype in (Keyword, Name.Builtin) and not data_type:
-                # The first Keyword or Builtin after the column name is assumed to be the data type
-                data_type = [token.value]
-            elif token.ttype in (Keyword, Name.Builtin) and data_type:
-                # If we already have a data type, this must be a constraint
-                constraints.append(token.value.upper())
-
-        # Check if the data type was found
-        if not data_type:
-            raise ValueError(f"No data type found for column {col_name}")
-
-        # Construct the column definition
-        col_def = {
-            'data_type': ' '.join(data_type).strip(),
-            'constraints': constraints
-        }
-
-        return col_name, col_def
-
-
-    def _parse_primary_key(self, tokens):
-        # This method will parse the primary key column names from the tokens
-        primary_key = []
-        for token in tokens:
-            if isinstance(token, Identifier):
-                primary_key.append(token.get_name())
-            elif token.ttype is Punctuation:
-                continue  # Skip punctuation like commas
-            else:
-                raise ValueError(f"Unexpected token type in PRIMARY KEY definition: {token}")
-        return primary_key
+                # if there is only one key, then the type is a string
+                if key_columns in column:
+                    column[key_columns][key_type] = True
+                    # if the key is a foreign key, then add the reference table and column
+                    if key_type == "foreign_key":
+                        column[key_columns]["foreign_references"] = constraint[
+                            key_type
+                        ]["references"]
 
     def initialize_table_structure(self, table_name, schema):
         if table_name in self.tables:
@@ -152,7 +141,9 @@ class CreateTable:
         if table_name not in self.table_schemas:
             raise ValueError(f"Schema for {table_name} does not exist!")
 
-        with open(csv_filename, 'r', encoding='utf-8') as file:  # Added encoding specification
+        with open(
+            csv_filename, "r", encoding="utf-8"
+        ) as file:  # Added encoding specification
             reader = csv.DictReader(file)
             expected_columns = set(self.table_schemas[table_name].keys())
             csv_columns = set(reader.fieldnames)
@@ -164,21 +155,26 @@ class CreateTable:
             if csv_columns != expected_columns:
                 print(f"Expected columns: {expected_columns}")
                 print(f"CSV columns: {csv_columns}")
-                raise ValueError(f"CSV columns do not match table columns for {table_name}!")
+                raise ValueError(
+                    f"CSV columns do not match table columns for {table_name}!"
+                )
 
             for row in reader:
                 # Convert types as per the schema before appending
                 converted_row = {
-                    column: self._convert_type(row[column], self.table_schemas[table_name][column]['data_type'])
-                    for column in row}
+                    column: self._convert_type(
+                        row[column], self.table_schemas[table_name][column]["data_type"]
+                    )
+                    for column in row
+                }
                 self.tables[table_name].append(converted_row)
 
     def _convert_type(self, value, data_type):
-        if data_type == 'INT':
+        if data_type == "INT":
             return int(value)
-        elif data_type.startswith('FLOAT') or data_type.startswith('DECIMAL'):
+        elif data_type.startswith("FLOAT") or data_type.startswith("DECIMAL"):
             return float(value)
-        elif data_type == 'DATE':
+        elif data_type == "DATE":
             # Assuming you want to keep date as a string for now,
             # but you might want to convert it to a datetime object.
             return value
@@ -197,6 +193,6 @@ class CreateTable:
 
     def _find_primary_key(self, table_name):
         for column, column_def in self.table_schemas[table_name].items():
-            if 'PRIMARY KEY' in column_def['constraints']:
+            if "PRIMARY KEY" in column_def["constraints"]:
                 return column
         return None

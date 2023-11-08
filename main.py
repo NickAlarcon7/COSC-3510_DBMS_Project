@@ -1,9 +1,10 @@
 from create_table import CreateTable
-from sqlglot.executor import execute
+from executor import execute
+from mo_sql_parsing import parse
 
 basicTable = CreateTable()
 
-# Parsing the SQL CREATE commands with constraints and initializing the table structure
+# example commands
 command = """
 CREATE TABLE sushi (
     id INT NOT NULL,
@@ -15,7 +16,9 @@ command2 = """
 CREATE TABLE order_items (
     sushi_id INT NOT NULL,
     order_id INT NOT NULL,
-    PRIMARY KEY (sushi_id, order_id)
+    PRIMARY KEY (sushi_id, order_id),
+    FOREIGN KEY (sushi_id) REFERENCES sushi(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id)
 );
 """
 command3 = """
@@ -25,66 +28,89 @@ CREATE TABLE orders (
     PRIMARY KEY (id)
 );
 """
+commands = [command, command2, command3]
 
-table_name, schema = basicTable.parse_create_command(command)
-print(f"Parsed schema for {table_name}: {schema}")
-basicTable.initialize_table_structure(table_name, schema)
-table_name2, schema2 = basicTable.parse_create_command(command2)
-print(f"Parsed schema for {table_name2}: {schema2}")
-basicTable.initialize_table_structure(table_name2, schema2)
-table_name3, schema3 = basicTable.parse_create_command(command3)
-print(f"Parsed schema for {table_name3}: {schema3}")
-basicTable.initialize_table_structure(table_name3, schema3)
+# command is parsed into parsed and stored in a dictionary
+# parsed stores the names of the commands (e.g. "create table", "orderby")
+for command in commands:
+    parsed = parse(command)
 
-# Populate the tables with data from CSV files
+    # parse the create table command and initialize the table and index structure
+    if "create table" in parsed:
+        table_name, schema = basicTable.parse_create_command(parsed["create table"])
+        # basicTable.initialize_table_structure(table_name, schema)
 
-# ... [previous code]
+# # temporarily set the tables
+# basicTable.tables = {
+#     "sushi": [
+#         {"id": 1, "price": 1.0},
+#         {"id": 2, "price": 2.0},
+#         {"id": 3, "price": 3.0},
+#     ],
+#     "order_items": [
+#         {"sushi_id": 1, "order_id": 1},
+#         {"sushi_id": 1, "order_id": 1},
+#         {"sushi_id": 2, "order_id": 1},
+#         {"sushi_id": 3, "order_id": 2},
+#     ],
+#     "orders": [
+#         {"id": 1, "user_id": 1},
+#         {"id": 2, "user_id": 2},
+#     ],
+# }
 
-# Populate the tables with data from CSV files
-try:
-    basicTable.populate_table_from_csv(table_name, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data.csv')
-except ValueError as e:
-    print("Expected columns:", basicTable.table_schemas[table_name])
-    print("CSV columns:", basicTable.tables[table_name])
-    raise e
+# # Populate the tables with data from CSV files
 
-# ... [rest of the code]
+# # ... [previous code]
 
-basicTable.populate_table_from_csv(table_name2, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data2.csv')
-basicTable.populate_table_from_csv(table_name3, '/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv')
+# # # Populate the tables with data from CSV files
+# # try:
+# #     basicTable.populate_table_from_csv(
+# #         table_name,
+# #         "/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data.csv",
+# #     )
+# # except ValueError as e:
+# #     print("Expected columns:", basicTable.table_schemas[table_name])
+# #     print("CSV columns:", basicTable.tables[table_name])
+# #     raise e
 
-# Create B-tree indexes for tables with primary keys
-basicTable.create_btree_index(table_name)
-basicTable.create_btree_index(table_name2)
-basicTable.create_btree_index(table_name3)
+# # # ... [rest of the code]
 
-# Print the structure of all tables and schemas
-print("Tables:")
-for table, rows in basicTable.tables.items():
-    print(f"{table}: {rows}")
-print("\nSchemas:")
-for table, schema in basicTable.table_schemas.items():
-    print(f"{table}: {schema}")
+# # basicTable.populate_table_from_csv(
+# #     table_name2,
+# #     "/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data2.csv",
+# # )
+# # basicTable.populate_table_from_csv(
+# #     table_name3,
+# #     "/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv",
+# # )
 
-# Example query using sqlglot to execute and fetch results
-try:
-    result = execute(
-    """
-    SELECT
-      o.user_id,
-      SUM(s.price * i.quantity) AS total_price
-    FROM orders o
-    JOIN order_items i
-      ON o.id = i.order_id
-    JOIN sushi s
-      ON i.sushi_id = s.id
-    GROUP BY o.user_id
-    """,
-    tables=basicTable.tables
-    )
-    print("\nQuery Results:")
-    print(result)
-except Exception as e:
-    print(f"\nAn Error occurred: {e}")
+# # # Create B-tree indexes for tables with primary keys
+# # basicTable.create_btree_index(table_name)
+# # basicTable.create_btree_index(table_name2)
+# # basicTable.create_btree_index(table_name3)
 
+# # # Print the structure of all tables and schemas
+# # print("Tables:")
+# # for table, rows in basicTable.tables.items():
+# #     print(f"{table}: {rows}")
+# # print("\nSchemas:")
+# # for table, schema in basicTable.table_schemas.items():
+# #     print(f"{table}: {schema}")
 
+# # Example query using sqlglot to execute and fetch results
+# try:
+#     result = execute(
+#         """
+#     SELECT
+#       o.user_id, i.order_id, i.sushi_id
+#     FROM orders o, order_items i
+#     WHERE o.id = i.order_id
+#     ORDER BY i.sushi_id
+#     """,
+#         tables=basicTable.tables,
+#     )
+#     print("\nQuery Results:")
+#     print(result)
+# except Exception as e:
+#     print(f"\nAn Error occurred: {e}")
