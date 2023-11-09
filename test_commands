@@ -1,0 +1,12 @@
+# example commands
+
+CREATE TABLE sushi (id INT NOT NULL, price DECIMAL(5, 2) NOT NULL, PRIMARY KEY (id));
+
+
+CREATE TABLE order_items (sushi_id INT NOT NULL, order_id INT NOT NULL, PRIMARY KEY (sushi_id, order_id), FOREIGN KEY (sushi_id) REFERENCES sushi(id), FOREIGN KEY (order_id) REFERENCES orders(id));
+
+
+CREATE TABLE orders (id INT NOT NULL, user_id INT NOT NULL, PRIMARY KEY (id));
+
+
+CREATE TABLE Orders (OrderID INT PRIMARY KEY, OrderDate DATE, NewCustomerID INT, NewCustomerName VARCHAR(255), FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName));

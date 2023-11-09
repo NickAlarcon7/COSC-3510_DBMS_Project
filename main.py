@@ -1,51 +1,14 @@
 from create_database import Database
 from executor import execute
 from mo_sql_parsing import parse
+from CLI import DatabaseCLI
 
-basicDatabase = Database()
 
-# example commands
-command = """
-CREATE TABLE sushi (
-    id INT NOT NULL,
-    price DECIMAL(5, 2) NOT NULL,
-    PRIMARY KEY (id)
-);
-"""
-command2 = """
-CREATE TABLE order_items (
-    sushi_id INT NOT NULL,
-    order_id INT NOT NULL,
-    PRIMARY KEY (sushi_id, order_id),
-    FOREIGN KEY (sushi_id) REFERENCES sushi(id),
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-);
-"""
-command3 = """
-CREATE TABLE orders (
-    id INT NOT NULL,
-    user_id INT NOT NULL,
-    PRIMARY KEY (id)
-);
-"""
-command4 = """
-CREATE TABLE Orders (
-    OrderID INT PRIMARY KEY,
-    OrderDate DATE,
-    NewCustomerID INT,
-    NewCustomerName VARCHAR(255),
-    FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName)
-);
-"""
-commands = [command, command2, command3, command4]
-# command is parsed into parsed and stored in a dictionary
-# parsed stores the names of the commands (e.g. "create table", "orderby")
-for command in commands:
-    parsed = parse(command)
-
-    # parse the create table command and initialize the table and index structure
-    if "create table" in parsed:
-        basicDatabase.create_table(parsed["create table"])
+if __name__ == '__main__':
+    # Here you create an instance of your Database class
+    database_instance = Database()
+    # Now pass this instance to the DatabaseCLI
+    DatabaseCLI(database_instance).cmdloop()
 
 # # temporarily set the tables
 # basicTable.tables = {
