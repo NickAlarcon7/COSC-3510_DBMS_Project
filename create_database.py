@@ -1,5 +1,5 @@
 import csv
-from bintrees import BinaryTree
+from BTrees.OOBTree import OOBTree
 from decimal import Decimal, getcontext
 from prettytable import PrettyTable
 
@@ -21,7 +21,6 @@ class Database:
         schema = self._create_schema(table_definition)
         print(f"Schema for {table_name}: {schema}")
         self.table_schemas[table_name] = schema
-        print(f"Indexing structure: {self.indexing_structures}")
 
     def _create_schema(self, table_definition):
         schema = {}
@@ -52,8 +51,10 @@ class Database:
             if "primary_key" in constraint:
                 self._parse_key(schema, constraint, "primary_key")
             # traverse through the schema list to find the column that matches the foreign key
-            if "foreign_key" in constraint:
+            elif "foreign_key" in constraint:
                 self._parse_key(schema, constraint, "foreign_key")
+            else:
+                raise ValueError(f"Invalid constraint: {constraint}")
 
         # since inline primary key is not included in constraint, we need to check to ensure primary key exists
         primary_key_count = self._count_primary_key_(schema)
@@ -61,7 +62,7 @@ class Database:
             raise ValueError("No primary key specified!")
         # if key is a single attribute primary key, then add an entry to the indexing structure
         elif primary_key_count == 1:
-            self.indexing_structures[table_definition["name"]] = BinaryTree()
+            self.indexing_structures[table_definition["name"]] = OOBTree()
 
         return schema
 
@@ -141,22 +142,23 @@ class Database:
         elif data_type == "float":
             return float(value)
         # Handle decimal type with precision and scale
-        elif isinstance(data_type, dict) and 'decimal' in data_type:
-            precision, scale = data_type['decimal']
+        elif isinstance(data_type, dict) and "decimal" in data_type:
+            precision, scale = data_type["decimal"]
             getcontext().prec = precision
 
             # Handle decimal type with precision and scale
             # We can either return a Decimal object or a float
-            results = Decimal(value).quantize(Decimal('1.' + '0' * scale))
+            results = Decimal(value).quantize(Decimal("1." + "0" * scale))
             return float(results)
 
         # Handle date type
-        elif data_type == "DATE":
+        elif data_type == "date":
             # Assuming you want to keep date as a string for now,
             # but you might want to convert it to a datetime object.
             return value
         # Handle other data types that are strings
         else:
+            print(3)
             return value
 
     def query_results(self, query):
@@ -183,7 +185,7 @@ class Database:
         for row in self.tables[table_name]:
             table.add_row([row[column] for column in table.field_names])
             # Add a separator after each row
-            table.add_row(['-' * len(str(row[column])) for column in table.field_names])
+            table.add_row(["-" * len(str(row[column])) for column in table.field_names])
 
         # Remove the last separator line
         table.del_row(-1)
