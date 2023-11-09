@@ -1,6 +1,7 @@
 import cmd
 import subprocess
 from mo_sql_parsing import parse
+from executor import execute
 from create_database import Database
 
 
@@ -79,7 +80,16 @@ class DatabaseCLI(cmd.Cmd):
 
     def do_run_query(self, line):
         """Run a query on the database: QUERY your_sql_query;"""
-        print("Run query not implemented yet.")
+        ## TODO: Implement this better using a function from create_database.py
+        if line is None or line == "":
+            print("Enter your QUERY command:")
+            line = input()
+        try:
+            results = execute(f"""{line}""", tables=self.database.tables)
+            print("\nQuery Results:")
+            print(results)
+        except ValueError as e:
+            print(f"An error occurred while trying to run query: {e}")
 
     def do_print_tables(self, line):
         """Print all tables in the database or a specific table;"""

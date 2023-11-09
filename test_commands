@@ -1,12 +1,17 @@
 # example commands
 
-CREATE TABLE sushi (id INT NOT NULL, price DECIMAL(5, 2) NOT NULL, PRIMARY KEY (id));
+create_table CREATE TABLE sushi (id INT NOT NULL, price DECIMAL(5, 2) NOT NULL, PRIMARY KEY (id));
+load_data LOAD DATA sushi /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data.csv
 
+create_table CREATE TABLE order_items (sushi_id INT NOT NULL, order_id INT NOT NULL, PRIMARY KEY (sushi_id, order_id), FOREIGN KEY (sushi_id) REFERENCES sushi(id), FOREIGN KEY (order_id) REFERENCES orders(id));
+load_data LOAD DATA order_items /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data2.csv
 
-CREATE TABLE order_items (sushi_id INT NOT NULL, order_id INT NOT NULL, PRIMARY KEY (sushi_id, order_id), FOREIGN KEY (sushi_id) REFERENCES sushi(id), FOREIGN KEY (order_id) REFERENCES orders(id));
-
-
-CREATE TABLE orders (id INT NOT NULL, user_id INT NOT NULL, PRIMARY KEY (id));
+create_table CREATE TABLE orders (id INT NOT NULL, user_id INT NOT NULL, PRIMARY KEY (id));
+load_data LOAD DATA orders /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv
 
 
 CREATE TABLE Orders (OrderID INT PRIMARY KEY, OrderDate DATE, NewCustomerID INT, NewCustomerName VARCHAR(255), FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName));
+
+
+SELECT o.user_id, i.order_id, i.sushi_id FROM orders o, order_items i WHERE o.id = i.order_id ORDER BY i.sushi_id
+SELECT o.user_id, SUM(s.price) AS price FROM orders o JOIN order_items i ON o.id = i.order_id JOIN sushi s ON i.sushi_id = s.id GROUP BY o.user_id
