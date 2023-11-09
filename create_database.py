@@ -93,16 +93,27 @@ from bintrees import BinaryTree
 }
 
 
-class CreateTable:
+class Database:
     def __init__(self):
         self.tables = {}
-        self.bplus_trees = {}
+        self.indexing_structures = {}
         self.table_schemas = {}
 
-    def parse_create_command(self, table_definition):
+    def create_table(self, table_definition):
         table_name = table_definition["name"]
-        schema = {}
+        if table_name in self.tables:
+            raise ValueError(f"Table {table_name} already exists!")
 
+        # Create an empty table that will be populated when LOAD DATA is read
+        self.tables[table_name] = []
+
+        schema = self._create_schema(table_definition)
+        print(f"Schema for {table_name}: {schema}")
+        self.table_schemas[table_name] = schema
+        print(f"Indexing structure: {self.indexing_structures}")
+
+    def _create_schema(self, table_definition):
+        schema = {}
         # First check if table has only one column
         if type(table_definition["columns"]) is dict:
             columns = [table_definition["columns"]]
@@ -117,8 +128,7 @@ class CreateTable:
 
         # if no constraints are specified, return early
         if "constraint" not in table_definition:
-            print(f"Schema for {table_name}: {schema}")
-            return table_name, schema
+            return schema
 
         # Next, add primary key and foreign key constraints
         constraints = table_definition["constraint"]
@@ -134,8 +144,15 @@ class CreateTable:
             if "foreign_key" in constraint:
                 self._parse_key(schema, constraint, "foreign_key")
 
-        print(f"Schema for {table_name}: {schema}")
-        return table_name, schema
+        # since inline primary key is not included in constraint, we need to check to ensure primary key exists
+        primary_key_count = self._count_primary_key_(schema)
+        if primary_key_count == 0:
+            raise ValueError("No primary key specified!")
+        # if key is a single attribute primary key, then add an entry to the indexing structure
+        elif primary_key_count == 1:
+            self.indexing_structures[table_definition["name"]] = BinaryTree()
+
+        return schema
 
     # add primary key and foreign key constraints to the schema
     def _parse_key(self, schema, constraint, key_type):
@@ -164,11 +181,12 @@ class CreateTable:
                     "column": key_references["columns"],
                 }
 
-    def initialize_table_structure(self, table_name, schema):
-        if table_name in self.tables:
-            raise ValueError(f"Table {table_name} already exists!")
-        self.tables[table_name] = []
-        self.table_schemas[table_name] = schema
+    def _count_primary_key_(self, schema):
+        count = 0
+        for column in schema:
+            if "primary_key" in schema[column]:
+                count += 1
+        return count
 
     def populate_table_from_csv(self, table_name, csv_filename):
         if table_name not in self.tables:
@@ -215,19 +233,3 @@ class CreateTable:
             return value
         else:
             return value  # For other data types that are strings
-
-    def create_btree_index(self, table_name):
-        primary_key = self._find_primary_key(table_name)
-        if primary_key is None:
-            raise ValueError(f"No primary key found for table {table_name}")
-
-        index = BinaryTree()
-        for row in self.tables[table_name]:
-            index.insert(row[primary_key], row)
-        self.bplus_trees[table_name] = index
-
-    def _find_primary_key(self, table_name):
-        for column, column_def in self.table_schemas[table_name].items():
-            if "PRIMARY KEY" in column_def["constraints"]:
-                return column
-        return None

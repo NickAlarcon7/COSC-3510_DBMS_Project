@@ -1,8 +1,8 @@
-from create_table import CreateTable
+from create_database import Database
 from executor import execute
 from mo_sql_parsing import parse
 
-basicTable = CreateTable()
+basicDatabase = Database()
 
 # example commands
 command = """
@@ -45,8 +45,7 @@ for command in commands:
 
     # parse the create table command and initialize the table and index structure
     if "create table" in parsed:
-        table_name, schema = basicTable.parse_create_command(parsed["create table"])
-        # basicTable.initialize_table_structure(table_name, schema)
+        basicDatabase.create_table(parsed["create table"])
 
 # # temporarily set the tables
 # basicTable.tables = {
@@ -92,11 +91,6 @@ for command in commands:
 # #     table_name3,
 # #     "/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv",
 # # )
-
-# # # Create B-tree indexes for tables with primary keys
-# # basicTable.create_btree_index(table_name)
-# # basicTable.create_btree_index(table_name2)
-# # basicTable.create_btree_index(table_name3)
 
 # # # Print the structure of all tables and schemas
 # # print("Tables:")
