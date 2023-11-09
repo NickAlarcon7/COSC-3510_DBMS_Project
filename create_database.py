@@ -1,5 +1,7 @@
 import csv
 from bintrees import BinaryTree
+from decimal import Decimal, getcontext
+from prettytable import PrettyTable
 
 
 class Database:
@@ -125,20 +127,59 @@ class Database:
                 # Convert types as per the schema before appending
                 converted_row = {
                     column: self._convert_type(
-                        row[column], self.table_schemas[table_name][column]["data_type"]
+                        row[column], self.table_schemas[table_name][column]["type"]
                     )
                     for column in row
                 }
                 self.tables[table_name].append(converted_row)
 
     def _convert_type(self, value, data_type):
-        if data_type == "INT":
+        # Handle integer type
+        if data_type == "int":
             return int(value)
-        elif data_type.startswith("FLOAT") or data_type.startswith("DECIMAL"):
+        # Handle floating point type
+        elif data_type == "float":
             return float(value)
+        # Handle decimal type with precision and scale
+        elif isinstance(data_type, dict) and 'decimal' in data_type:
+            precision, scale = data_type['decimal']
+            getcontext().prec = precision
+
+            # Handle decimal type with precision and scale
+            # We can either return a Decimal object or a float
+            results = Decimal(value).quantize(Decimal('1.' + '0' * scale))
+            return float(results)
+
+        # Handle date type
         elif data_type == "DATE":
             # Assuming you want to keep date as a string for now,
             # but you might want to convert it to a datetime object.
             return value
+        # Handle other data types that are strings
         else:
-            return value  # For other data types that are strings
+            return value
+
+    def print_table(self, table_name):
+        if table_name not in self.tables:
+            print(f"Table {table_name} does not exist!")
+            return
+
+        # Create a PrettyTable instance
+        table = PrettyTable()
+
+        # Set the column names as the fields
+        table.field_names = self.table_schemas[table_name].keys()
+
+        # Add rows to the table
+        for row in self.tables[table_name]:
+            table.add_row([row[column] for column in table.field_names])
+            # Add a separator after each row
+            table.add_row(['-' * len(str(row[column])) for column in table.field_names])
+
+        # Remove the last separator line
+        table.del_row(-1)
+
+        # Print the table with a border and header line
+        table.header = True
+        table.border = True
+        print(table)

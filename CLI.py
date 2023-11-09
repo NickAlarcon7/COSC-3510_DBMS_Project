@@ -29,13 +29,22 @@ class DatabaseCLI(cmd.Cmd):
 
     def do_load_data(self, arg):
         """Load data into a table from a CSV file: LOAD DATA <table_name> <csv_file_path>"""
+        if self.database.tables is None or len(self.database.tables) == 0:
+            print("No tables in the database. Try creating one first genius")
+            return
         if arg is None or arg == "":
             print("Enter your LOAD DATA command:")
             arg = input()
         try:
             parts = arg.split()
-            if len(parts) == 2:
-                table_name, csv_path = parts
+            if len(parts) == 4:
+                part1, part2, table_name, csv_path = parts
+                if part1.lower() + part2.lower() != "loaddata":
+                    print(f"Invalid command: {arg}")
+                    return
+                if table_name not in self.database.tables:
+                    print(f"Table {table_name} does not exist.")
+                    return
                 self.database.populate_table_from_csv(table_name, csv_path)
                 print(f"Data loaded into table {table_name} from {csv_path}.")
             else:
@@ -80,12 +89,14 @@ class DatabaseCLI(cmd.Cmd):
                 return
             if line is None or line == "":
                 for table in self.database.tables:
-                    print(f"Table for {table}: \n")
+                    print(f"Table for {table}:")
                     print(self.database.tables[table])
+                    self.database.print_table(table)
                     print("\n" * 2)
             else:
                 print(f"Table for {line}: \n")
                 print(self.database.tables[line])
+                self.database.print_table(line)
         except ValueError as e:
             print(f"An error occurred while trying to print tables: {e}")
 
@@ -97,7 +108,7 @@ class DatabaseCLI(cmd.Cmd):
                 return
             if line is None or line == "":
                 for schema in self.database.table_schemas:
-                    print(f"Schema for {schema}: \n")
+                    print(f"Schema for {schema}:")
                     print(self.database.table_schemas[schema])
                     print("\n" * 2)
             else:
