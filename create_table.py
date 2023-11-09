@@ -3,6 +3,32 @@ from bintrees import BinaryTree
 
 {
     "create table": {
+        "name": "MyTable",
+        "columns": {"name": "MyColumn", "type": {"int": {}}, "primary_key": True},
+    }
+}
+{
+    "create table": {
+        "name": "Orders",
+        "columns": [
+            {"name": "OrderID", "type": {"int": {}}, "primary_key": True},
+            {"name": "OrderDate", "type": {"date": {}}},
+            {"name": "NewCustomerID", "type": {"int": {}}},
+            {"name": "NewCustomerName", "type": {"varchar": 255}},
+        ],
+        "constraint": {
+            "foreign_key": {
+                "columns": ["NewCustomerID", "NewCustomerName"],
+                "references": {
+                    "table": "Customers",
+                    "columns": ["CustomerID", "CustomerName"],
+                },
+            }
+        },
+    }
+}
+{
+    "create table": {
         "name": "sushi",
         "columns": [
             {"name": "id", "type": {"int": {}}, "nullable": False},
@@ -13,10 +39,10 @@ from bintrees import BinaryTree
 }
 
 {
-    "sushi": [
-        {"id": {"type": "INT", "nullable": False, "primary_key": True}},
-        {"price": {"type": "INT", "nullable": False}},
-    ],
+    "sushi": {
+        "id": {"type": "INT", "nullable": False, "primary_key": True},
+        "price": {"type": "INT", "nullable": False},
+    },
 }
 
 {
@@ -75,59 +101,68 @@ class CreateTable:
 
     def parse_create_command(self, table_definition):
         table_name = table_definition["name"]
-        schema = []
+        schema = {}
 
-        # TODO: handle when there is only one column
-        for column in table_definition["columns"]:
-            # create a temp entry to be added to the schema list
-            # only add "nullable" property if it is in column
-            temp = {column["name"]: {"type": column["type"]}}
-            if "nullable" in column:
-                temp[column["name"]]["nullable"] = column["nullable"]
-            schema.append(temp)
+        # First check if table has only one column
+        if type(table_definition["columns"]) is dict:
+            columns = [table_definition["columns"]]
+        else:
+            columns = table_definition["columns"]
+
+        # Next, add columns to the schema
+        for column in columns:
+            schema[column["name"]] = {
+                key: value for key, value in column.items() if key != "name"
+            }
+
+        # if no constraints are specified, return early
+        if "constraint" not in table_definition:
+            print(f"Schema for {table_name}: {schema}")
+            return table_name, schema
 
         # Next, add primary key and foreign key constraints
         constraints = table_definition["constraint"]
-        # First, check if "constraint"'s value is a list or a dictionary
-        # if it is a list, then foreign key and primary key constraints are in the list
-        if type(constraints) is list:
-            for constraint in constraints:
-                # traverse through the schema list to find the column that matches the primary key
-                if "primary_key" in constraint:
-                    self.parse_key(schema, constraint, "primary_key")
-                # traverse through the schema list to find the column that matches the foreign key
-                if "foreign_key" in constraint:
-                    self.parse_key(schema, constraint, "foreign_key")
-        # if it is a dictionary, then there is only primary key constraint
-        elif type(constraints) is dict:
+        # First, convert the constraints to a list if it is a dictionary
+        if type(constraints) is dict:
+            constraints = [constraints]
+
+        for constraint in constraints:
             # traverse through the schema list to find the column that matches the primary key
-            self.parse_key(schema, constraints, "primary_key")
+            if "primary_key" in constraint:
+                self._parse_key(schema, constraint, "primary_key")
+            # traverse through the schema list to find the column that matches the foreign key
+            if "foreign_key" in constraint:
+                self._parse_key(schema, constraint, "foreign_key")
 
         print(f"Schema for {table_name}: {schema}")
-
         return table_name, schema
 
     # add primary key and foreign key constraints to the schema
-    def parse_key(self, schema, constraint, key_type):
+    def _parse_key(self, schema, constraint, key_type):
         key_columns = constraint[key_type]["columns"]
 
-        # TODO: handle when foreign key is multiple attributes
-        # traverse through the schema list to find the column that matches the primary key
-        for column in schema:
-            # check if there are multiple keys by checking the type
-            if type(key_columns) is list:
-                for key in key_columns:
-                    if key in column:
-                        column[key][key_type] = True
-            else:
-                # if there is only one key, then the type is a string
-                if key_columns in column:
-                    column[key_columns][key_type] = True
-                    # if the key is a foreign key, then add the reference table and column
-                    if key_type == "foreign_key":
-                        column[key_columns]["foreign_references"] = constraint[
-                            key_type
-                        ]["references"]
+        # if key_columns is a list, then there are multiple keys
+        if type(key_columns) is list:
+            for index, key in enumerate(key_columns):
+                schema[key][key_type] = True
+                # if key is a foreign key, then add the foreign table and column to the column
+                if key_type == "foreign_key":
+                    key_references = constraint[key_type]["references"]
+                    schema[key]["foreign_references"] = {
+                        "table": key_references["table"],
+                        "column": key_references["columns"][index],
+                    }
+
+        # if key_columns is a string, then there is only one key
+        else:
+            schema[key_columns][key_type] = True
+            # if key is a foreign key, then add the foreign table and column to the column
+            if key_type == "foreign_key":
+                key_references = constraint[key_type]["references"]
+                schema[key_columns]["foreign_references"] = {
+                    "table": key_references["table"],
+                    "column": key_references["columns"],
+                }
 
     def initialize_table_structure(self, table_name, schema):
         if table_name in self.tables:

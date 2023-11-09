@@ -28,8 +28,16 @@ CREATE TABLE orders (
     PRIMARY KEY (id)
 );
 """
-commands = [command, command2, command3]
-
+command4 = """
+CREATE TABLE Orders (
+    OrderID INT PRIMARY KEY,
+    OrderDate DATE,
+    NewCustomerID INT,
+    NewCustomerName VARCHAR(255),
+    FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName)
+);
+"""
+commands = [command, command2, command3, command4]
 # command is parsed into parsed and stored in a dictionary
 # parsed stores the names of the commands (e.g. "create table", "orderby")
 for command in commands:
