@@ -121,16 +121,12 @@ class Database:
         return count
 
     def populate_table_from_csv(self, table_name, csv_filename):
-        # comprehensively check if table exists in the database
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
         table = self.tables[table_name]
         if table_name not in self.table_schemas:
             raise ValueError(f"Schema for {table_name} does not exist!")
         schema = self.table_schemas[table_name]
-        if table_name not in self.indexing_structures:
-            raise ValueError(f"Indexing structure for {table_name} does not exist!")
-        indexing_structure = self.indexing_structures[table_name]
 
         with open(
             csv_filename, "r", encoding="utf-8"
@@ -156,22 +152,26 @@ class Database:
                     column: self._convert_type(row[column], schema[column]["type"])
                     for column in row
                 }
-                # Extract the primary key column and its value
-                primary_key_column = next(
-                    column
-                    for column in converted_row
-                    if "primary_key" in schema[column]
-                )
-                primary_key_value = converted_row[primary_key_column]
-                # Check if the primary key already exists
-                if primary_key_value in indexing_structure:
-                    raise ValueError(
-                        f"Duplicate primary key: {primary_key_value} already exists in table {table_name}!"
-                    )
-                # Add converted_row to the indexing structure
-                indexing_structure.insert(primary_key_value, converted_row)
                 # Add converted_row to the table
                 table.append(converted_row)
+
+                # if indeing structure exists, then add the row to the indexing structure
+                if table_name in self.indexing_structures:
+                    indexing_structure = self.indexing_structures[table_name]
+                    # Extract the primary key column and its value
+                    primary_key_column = next(
+                        column
+                        for column in converted_row
+                        if "primary_key" in schema[column]
+                    )
+                    primary_key_value = converted_row[primary_key_column]
+                    # Check if the primary key already exists
+                    if primary_key_value in indexing_structure:
+                        raise ValueError(
+                            f"Duplicate primary key: {primary_key_value} already exists in table {table_name}!"
+                        )
+                    # Add converted_row to the indexing structure
+                    indexing_structure.insert(primary_key_value, converted_row)
 
     def _convert_type(self, value, data_type):
         try:
