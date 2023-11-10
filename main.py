@@ -5,10 +5,8 @@ from CLI import DatabaseCLI
 
 
 if __name__ == '__main__':
-    # Here you create an instance of your Database class
-    database_instance = Database()
-    # Now pass this instance to the DatabaseCLI
-    DatabaseCLI(database_instance).cmdloop()
+    # Create a new database instance
+    DatabaseCLI().cmdloop()
 
 # # temporarily set the tables
 # basicTable.tables = {
