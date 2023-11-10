@@ -4,7 +4,7 @@
 
 ## Architecture:
 
-- A SQL parser: use mo-sql to identify CREATE TABLE statements
+- A SQL parser: use mo-sql to identify CREATE TABLE statements. For column data type, we explicitly support INT/INTEGER, FLOAT, DECIMAL, BOOLEAN, VARCHAR. Everything else is treated as string. We cannot enforce the length of VARCHAR since we treat it as string.
 - An indexing structure: a binary tree with primary key as key and a tuple as value (row of data)
 - A query optimizer: use sqlglot to optimize query **Need to work on this**
 - An execution engine: wrap sqlglot executor with index support
@@ -23,8 +23,8 @@
 
 - index-tree - dictionary (
   key: table name - string, value: index tree - AVL tree
-  return: Returns a table with a single row 
-  ) 
+  return: Returns a table with a single row
+  )
 
 ## Notes:
 
@@ -45,5 +45,6 @@
 - [ ] Create simple structure in main.py to allow user to create tables, load data, and query.
 
 ## THINGS TO CONSIDER:
+
 - [ ] Maintain the size of a table and expectation of sort status to be used in nested loop vs sorting join
 - [ ] Use a B+ tree, instead of an AVL tree, for indexing

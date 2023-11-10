@@ -32,9 +32,24 @@ class Database:
 
         # Next, add columns to the schema
         for column in columns:
+            # throw error if no type is specified
+            if "type" not in column:
+                raise ValueError(f"Invalid column - no type is specified: {column}")
+
             schema[column["name"]] = {
                 key: value for key, value in column.items() if key != "name"
             }
+
+            # clean up data types: convert "type": {"int": {}} to "type": "int"
+            data_type = schema[column["name"]]["type"]
+            if data_type in ("int", "integer"):
+                schema[column["name"]]["type"] = "int"
+            elif "float" in data_type:
+                schema[column["name"]]["type"] = "float"
+            elif "boolean" in data_type:
+                schema[column["name"]]["type"] = "boolean"
+            elif "varchar" in data_type:
+                schema[column["name"]]["type"] = "varchar"
 
         # if no constraints are specified, return early
         if "constraint" not in table_definition:
