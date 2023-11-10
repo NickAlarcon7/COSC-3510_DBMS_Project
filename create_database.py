@@ -24,32 +24,9 @@ class Database:
 
     def _create_schema(self, table_definition):
         schema = {}
-        # First check if table has only one column
-        if type(table_definition["columns"]) is dict:
-            columns = [table_definition["columns"]]
-        else:
-            columns = table_definition["columns"]
 
-        # Next, add columns to the schema
-        for column in columns:
-            # throw error if no type is specified
-            if "type" not in column:
-                raise ValueError(f"Invalid column - no type is specified: {column}")
-
-            schema[column["name"]] = {
-                key: value for key, value in column.items() if key != "name"
-            }
-
-            # clean up data types: convert "type": {"int": {}} to "type": "int"
-            data_type = schema[column["name"]]["type"]
-            if data_type in ("int", "integer"):
-                schema[column["name"]]["type"] = "int"
-            elif "float" in data_type:
-                schema[column["name"]]["type"] = "float"
-            elif "boolean" in data_type:
-                schema[column["name"]]["type"] = "boolean"
-            elif "varchar" in data_type:
-                schema[column["name"]]["type"] = "varchar"
+        # First, add columns to the schema
+        self._parse_columns(table_definition, schema)
 
         # if no constraints are specified, return early
         if "constraint" not in table_definition:
@@ -80,6 +57,34 @@ class Database:
             self.indexing_structures[table_definition["name"]] = OOBTree()
 
         return schema
+
+    def _parse_columns(self, table_definition, schema):
+        # First check if table has only one column
+        if type(table_definition["columns"]) is dict:
+            columns = [table_definition["columns"]]
+        else:
+            columns = table_definition["columns"]
+
+        # Next, add columns to the schema
+        for column in columns:
+            # throw error if no type is specified
+            if "type" not in column:
+                raise ValueError(f"Invalid column - no type is specified: {column}")
+
+            schema[column["name"]] = {
+                key: value for key, value in column.items() if key != "name"
+            }
+
+            # clean up data types - convert "type": {"int": {}} to "type": "int"
+            data_type = schema[column["name"]]["type"]
+            if "int" in data_type or "integer" in data_type:
+                schema[column["name"]]["type"] = "int"
+            elif "float" in data_type:
+                schema[column["name"]]["type"] = "float"
+            elif "boolean" in data_type:
+                schema[column["name"]]["type"] = "boolean"
+            elif "varchar" in data_type:
+                schema[column["name"]]["type"] = "varchar"
 
     # add primary key and foreign key constraints to the schema
     def _parse_key(self, schema, constraint, key_type):
@@ -116,16 +121,22 @@ class Database:
         return count
 
     def populate_table_from_csv(self, table_name, csv_filename):
+        # comprehensively check if table exists in the database
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
+        table = self.tables[table_name]
         if table_name not in self.table_schemas:
             raise ValueError(f"Schema for {table_name} does not exist!")
+        schema = self.table_schemas[table_name]
+        if table_name not in self.indexing_structures:
+            raise ValueError(f"Indexing structure for {table_name} does not exist!")
+        indexing_structure = self.indexing_structures[table_name]
 
         with open(
             csv_filename, "r", encoding="utf-8"
         ) as file:  # Added encoding specification
             reader = csv.DictReader(file)
-            expected_columns = set(self.table_schemas[table_name].keys())
+            expected_columns = set(schema.keys())
             csv_columns = set(reader.fieldnames)
 
             if not csv_columns:
@@ -142,39 +153,57 @@ class Database:
             for row in reader:
                 # Convert types as per the schema before appending
                 converted_row = {
-                    column: self._convert_type(
-                        row[column], self.table_schemas[table_name][column]["type"]
-                    )
+                    column: self._convert_type(row[column], schema[column]["type"])
                     for column in row
                 }
-                self.tables[table_name].append(converted_row)
+                # Extract the primary key column and its value
+                primary_key_column = next(
+                    column
+                    for column in converted_row
+                    if "primary_key" in schema[column]
+                )
+                primary_key_value = converted_row[primary_key_column]
+                # Check if the primary key already exists
+                if primary_key_value in indexing_structure:
+                    raise ValueError(
+                        f"Duplicate primary key: {primary_key_value} already exists in table {table_name}!"
+                    )
+                # Add converted_row to the indexing structure
+                indexing_structure.insert(primary_key_value, converted_row)
+                # Add converted_row to the table
+                table.append(converted_row)
 
     def _convert_type(self, value, data_type):
-        # Handle integer type
-        if data_type == "int":
-            return int(value)
-        # Handle floating point type
-        elif data_type == "float":
-            return float(value)
-        # Handle decimal type with precision and scale
-        elif isinstance(data_type, dict) and "decimal" in data_type:
-            precision, scale = data_type["decimal"]
-            getcontext().prec = precision
-
+        try:
+            # Handle integer type
+            if data_type == "int":
+                return int(value)
+            # Handle floating point type
+            elif data_type == "float":
+                return float(value)
+            # Handle boolean type
+            elif data_type == "varchar":
+                return str(value)
+            elif data_type == "boolean":
+                if value in ("true", "1", "t", "y", "yes"):
+                    return True
+                elif value in ("false", "0", "f", "n", "no"):
+                    return False
+                else:
+                    raise ValueError(f"Invalid boolean value: {value}")
             # Handle decimal type with precision and scale
-            # We can either return a Decimal object or a float
-            results = Decimal(value).quantize(Decimal("1." + "0" * scale))
-            return float(results)
-
-        # Handle date type
-        elif data_type == "date":
-            # Assuming you want to keep date as a string for now,
-            # but you might want to convert it to a datetime object.
-            return value
-        # Handle other data types that are strings
-        else:
-            print(3)
-            return value
+            elif isinstance(data_type, dict) and "decimal" in data_type:
+                precision, scale = data_type["decimal"]
+                getcontext().prec = precision
+                # Handle decimal type with precision and scale
+                results = Decimal(value).quantize(Decimal("1." + "0" * scale))
+                return float(results)
+            # Handle other data types that are strings
+            else:
+                return str(value)
+        except ValueError as e:
+            # Handle the case where conversion fails
+            raise ValueError(f"Error converting value '{value}' to {data_type}: {e}")
 
     def query_results(self, query):
         # TODO: This function will be used to execute queries, it will be called from CLI.py
