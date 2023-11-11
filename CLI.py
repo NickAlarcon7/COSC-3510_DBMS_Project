@@ -170,10 +170,14 @@ class DatabaseCLI(cmd.Cmd):
                 return
             if line is None or line == "":
                 for table in self.current_database.tables:
-                    print(f"Table for {table}:")
-                    print(self.current_database.tables[table])
-                    self.current_database.print_table(table)
-                    print("\n" * 2)
+                    if self.current_database.tables[table] is None or len(self.current_database.tables[table]) == 0:
+                        print(f"Table for {table} is empty.")
+                        continue
+                    else:
+                        print(f"Table for {table}:")
+                        print(self.current_database.tables[table])
+                        self.current_database.print_table(table)
+                        print("\n" * 2)
             else:
                 print(f"Table for {line}: \n")
                 print(self.current_database.tables[line])
