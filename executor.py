@@ -186,6 +186,7 @@ def execute(
     now = time.time()
     result = PythonExecutor(tables=tables_).execute(plan)
 
-    logger.debug("Query finished: %f", time.time() - now)
+    print(f"Query finished: {time.time() - now:.5f}s")
+    # print("Query finished: %fs", time.time() - now)
 
     return result
