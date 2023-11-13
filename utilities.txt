@@ -79,6 +79,14 @@
 }
 
 {
+    "select": [{"value": "employee_id"}, {"value": "employee_name"}],
+    "from": "employees",
+    "where": {
+        "and": [{"gt": ["salary", 50000]}, {"eq": ["department", {"literal": "IT"}]}]
+    },
+}
+
+{
     "create table": {
         "name": "orders",
         "columns": [

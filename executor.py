@@ -129,44 +129,76 @@ def execute_query(query, database):
     tables = database.tables
 
     parsed_query = parse(query)
+
     # extract table name from query
     from_tables = parsed_query["from"]
-    # extract where clause from query if it exists
-    if "where" in parsed_query:
-        where_clause = parsed_query["where"]
+    # extract table name from query and flatten it if it is a dictionary
+    if type(from_tables) is dict:
+        table_name = from_tables["value"]
+    else:
+        table_name = from_tables
 
+    # extract where clause from query if it exists
+    where_clause = parsed_query.get("where")
+    tempTable = {}
+
+    # Use indexing structure to retrieve row for single table queries with where clause
+    # e.x. SELECT * FROM sushi WHERE id = 1
+    # e.x. SELECT * FROM sushi WHERE id = 1 OR id = 2
     # if query deals with a single table, extract where clause from query if it exists
     if (
         type(from_tables) is not list
         and where_clause is not None
         and "eq" in where_clause
     ):
-        # extract table name from query and flatten it if it is a dictionary
-        if type(from_tables) is dict:
-            table_name = from_tables["value"]
-        else:
-            table_name = from_tables
+        tempTable = fetch_index(
+            where_clause["eq"],
+            database.indexing_structures,
+            database.table_schemas,
+            table_name,
+        )
+    elif (
+        type(from_tables) is not list
+        and where_clause is not None
+        and "or" in where_clause
+    ):
+        or_clause = where_clause["or"]
+        # or_clause is a list with two elements; remove non-eq elements
+        or_clause = [eq for eq in or_clause if "eq" in eq]
+        # if there is one eq element in the list, then call fetch_index with that element
+        if len(or_clause) == 1:
+            tempTable = fetch_index(
+                or_clause[0],
+                database.indexing_structures,
+                database.table_schemas,
+                table_name,
+            )
+        # if there are two eq elements in the list, then call fetch_index on both elements and combine the results
+        elif len(or_clause) == 2:
+            tempTable1 = fetch_index(
+                or_clause[0]["eq"],
+                database.indexing_structures,
+                database.table_schemas,
+                table_name,
+            )
+            tempTable2 = fetch_index(
+                or_clause[1]["eq"],
+                database.indexing_structures,
+                database.table_schemas,
+                table_name,
+            )
+            if tempTable1 != {} and tempTable2 != {}:
+                tempTable[table_name] = tempTable1[table_name] + tempTable2[table_name]
+            elif tempTable1 != {}:
+                tempTable = tempTable1
+            elif tempTable2 != {}:
+                tempTable = tempTable2
 
-        # extract equality condition array from where clause if it exists
-        equality_condition = where_clause["eq"]
-        # extract column name from equality condition array
-        column_name = equality_condition[0]
-        # extract matching value from equality condition array
-        if type(equality_condition[1]) is dict:
-            equality_condition[1] = equality_condition[1]["literal"]
-        matching_value = equality_condition[1]
-        # find out if table has an index, column is a primary key, and matching value is in index
-        if (
-            table_name in database.indexing_structures
-            and "primary_key" in database.table_schemas[table_name][column_name]
-            and database.indexing_structures[table_name].has_key(matching_value)
-        ):
-            # if matching value is in index, then use index to retrieve row
-            row = database.indexing_structures[table_name].get(matching_value)
-            # create a temp table with the row
-            tables = {}
-            tables[table_name] = [row]
+    # if tempTable exists, then set tabls to tempTable
+    if tempTable != {}:
+        tables = tempTable
 
+    print("Tables: ", tables)
     return sqlglot_execute(query, tables=tables)
 
 
@@ -238,3 +270,27 @@ def sqlglot_execute(
     # print("Query finished: %fs", time.time() - now)
 
     return result
+
+
+def fetch_index(equality_condition, indexing_structures, table_schemas, table_name):
+    tables = {}
+
+    # extract column name from equality condition array
+    column_name = equality_condition[0]
+    # extract matching value from equality condition array
+    if type(equality_condition[1]) is dict:
+        equality_condition[1] = equality_condition[1]["literal"]
+    matching_value = equality_condition[1]
+    # find out if table has an index, column is a primary key, and matching value is in index
+    if (
+        table_name in indexing_structures
+        and "primary_key" in table_schemas[table_name][column_name]
+        and indexing_structures[table_name].has_key(matching_value)
+    ):
+        # if matching value is in index, then use index to retrieve row
+        row = indexing_structures[table_name].get(matching_value)
+        # create a temp table with the row
+        tables[table_name] = [row]
+        return tables
+
+    return {}
