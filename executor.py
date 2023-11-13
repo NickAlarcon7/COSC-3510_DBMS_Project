@@ -4,6 +4,8 @@ import logging
 import time
 import typing as t
 
+from mo_sql_parsing import parse
+
 from sqlglot import maybe_parse
 from sqlglot.errors import ExecuteError
 from sqlglot.executor.python import PythonExecutor
@@ -123,7 +125,52 @@ class OptimizedPythonExecutor(PythonExecutor):
         return table
 
 
-def execute(
+def execute_query(query, database):
+    tables = database.tables
+
+    parsed_query = parse(query)
+    # extract table name from query
+    from_tables = parsed_query["from"]
+    # extract where clause from query if it exists
+    if "where" in parsed_query:
+        where_clause = parsed_query["where"]
+
+    # if query deals with a single table, extract where clause from query if it exists
+    if (
+        type(from_tables) is not list
+        and where_clause is not None
+        and "eq" in where_clause
+    ):
+        # extract table name from query and flatten it if it is a dictionary
+        if type(from_tables) is dict:
+            table_name = from_tables["value"]
+        else:
+            table_name = from_tables
+
+        # extract equality condition array from where clause if it exists
+        equality_condition = where_clause["eq"]
+        # extract column name from equality condition array
+        column_name = equality_condition[0]
+        # extract matching value from equality condition array
+        if type(equality_condition[1]) is dict:
+            equality_condition[1] = equality_condition[1]["literal"]
+        matching_value = equality_condition[1]
+        # find out if table has an index, column is a primary key, and matching value is in index
+        if (
+            table_name in database.indexing_structures
+            and "primary_key" in database.table_schemas[table_name][column_name]
+            and database.indexing_structures[table_name].has_key(matching_value)
+        ):
+            # if matching value is in index, then use index to retrieve row
+            row = database.indexing_structures[table_name].get(matching_value)
+            # create a temp table with the row
+            tables = {}
+            tables[table_name] = [row]
+
+    return sqlglot_execute(query, tables=tables)
+
+
+def sqlglot_execute(
     sql: str | Expression,
     schema: t.Optional[t.Dict | Schema] = None,
     read: DialectType = None,
@@ -184,8 +231,9 @@ def execute(
     logger.debug("Logical Plan: %s", plan)
 
     now = time.time()
-    result = PythonExecutor(tables=tables_).execute(plan)
+    result = OptimizedPythonExecutor(tables=tables_).execute(plan)
 
+    print()
     print(f"Query finished: {time.time() - now:.5f}s")
     # print("Query finished: %fs", time.time() - now)
 

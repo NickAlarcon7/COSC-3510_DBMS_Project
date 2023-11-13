@@ -3,7 +3,7 @@
 Create_Table CREATE TABLE sushi (id INT NOT NULL, price DECIMAL(5, 2) NOT NULL, PRIMARY KEY (id));
 Load_Data LOAD DATA sushi /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data.csv
 
-Create_Table CREATE TABLE order_items (sushi_id INT NOT NULL, order_id INT NOT NULL, PRIMARY KEY (sushi_id), FOREIGN KEY (sushi_id) REFERENCES sushi(id), FOREIGN KEY (order_id) REFERENCES orders(id));
+Create_Table CREATE TABLE order_items (sushi_id INT NOT NULL, order_id INT NOT NULL, PRIMARY KEY (sushi_id, order_id), FOREIGN KEY (sushi_id) REFERENCES sushi(id), FOREIGN KEY (order_id) REFERENCES orders(id));
 Load_Data LOAD DATA order_items /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data2.csv
 
 Create_Table CREATE TABLE orders (id INT NOT NULL, user_id INT NOT NULL, PRIMARY KEY (id));

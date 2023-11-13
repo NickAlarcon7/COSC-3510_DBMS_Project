@@ -1,12 +1,12 @@
 import cmd
 from mo_sql_parsing import parse
-from executor import execute
+from executor import execute_query
 from create_database import Database
 
 
 class DatabaseCLI(cmd.Cmd):
-    intro = 'Welcome to the SQL database CLI. Type help or ? to list commands.\n'
-    prompt = '(base-cli)$ '
+    intro = "Welcome to the SQL database CLI. Type help or ? to list commands.\n"
+    prompt = "(base-cli)$ "
 
     def __init__(self):
         super().__init__()
@@ -17,8 +17,17 @@ class DatabaseCLI(cmd.Cmd):
         return bool(self.databases)
 
     def onecmd(self, line):
-        if not self.current_database and line.split()[0] not in ('help', 'Create_Database', 'List_Databases', 'Exit', 'Use_Database', '?'):
-            print("No database is currently in use. Please create or use a database first.")
+        if not self.current_database and line.split()[0] not in (
+            "help",
+            "Create_Database",
+            "List_Databases",
+            "Exit",
+            "Use_Database",
+            "?",
+        ):
+            print(
+                "No database is currently in use. Please create or use a database first."
+            )
             return False
         else:
             return super().onecmd(line)
@@ -42,7 +51,7 @@ class DatabaseCLI(cmd.Cmd):
         else:
             self.databases[database_name] = Database()
             self.current_database = self.databases[database_name]
-            self.prompt = f'({database_name}-cli)> '
+            self.prompt = f"({database_name}-cli)> "
             print(f"Database '{database_name}' created successfully.")
 
     def do_Use_Database(self, database_name):
@@ -63,7 +72,7 @@ class DatabaseCLI(cmd.Cmd):
             print(f"No database found with the name '{database_name}'.")
         else:
             self.current_database = self.databases[database_name]
-            self.prompt = f'({database_name}-cli)> '
+            self.prompt = f"({database_name}-cli)> "
             print(f"Switched to database '{database_name}'.")
 
     def do_Create_Table(self, arg):
@@ -89,7 +98,10 @@ class DatabaseCLI(cmd.Cmd):
         if self.current_database is None:
             print("No database in use. Try creating one first")
             return
-        if self.current_database.tables is None or len(self.current_database.tables) == 0:
+        if (
+            self.current_database.tables is None
+            or len(self.current_database.tables) == 0
+        ):
             print("No tables in the database. Try creating one first")
             return
         if arg is None or arg == "":
@@ -118,7 +130,10 @@ class DatabaseCLI(cmd.Cmd):
 
     def do_Delete_Table(self, line):
         """Delete an existing table: DELETE TABLE table_name;"""
-        if self.current_database.tables is None or len(self.current_database.tables) == 0:
+        if (
+            self.current_database.tables is None
+            or len(self.current_database.tables) == 0
+        ):
             print("No tables in the database. Try creating one first")
             return
         if line is None or line == "":
@@ -145,15 +160,17 @@ class DatabaseCLI(cmd.Cmd):
         if self.current_database is None:
             print("No database in use. Try creating one first")
             return
-        if self.current_database.tables is None or len(self.current_database.tables) == 0:
+        if (
+            self.current_database.tables is None
+            or len(self.current_database.tables) == 0
+        ):
             print("No tables in the database. Try creating one first")
             return
-        # TODO: Implement this better using a function from create_database.py
         if line is None or line == "":
             print("Enter your QUERY command:")
             line = input()
         try:
-            results = execute(f"""{line}""", tables=self.current_database.tables)
+            results = execute_query(f"""{line}""", self.current_database)
             print("\nQuery Results:")
             print(results)
         except ValueError as e:
@@ -165,12 +182,18 @@ class DatabaseCLI(cmd.Cmd):
             print("No database in use. Try creating one first")
             return
         try:
-            if self.current_database.tables is None or len(self.current_database.tables) == 0:
+            if (
+                self.current_database.tables is None
+                or len(self.current_database.tables) == 0
+            ):
                 print("No tables in the database.")
                 return
             if line is None or line == "":
                 for table in self.current_database.tables:
-                    if self.current_database.tables[table] is None or len(self.current_database.tables[table]) == 0:
+                    if (
+                        self.current_database.tables[table] is None
+                        or len(self.current_database.tables[table]) == 0
+                    ):
                         print(f"Table for {table} is empty.")
                         continue
                     else:
@@ -191,7 +214,10 @@ class DatabaseCLI(cmd.Cmd):
             print("No database in use. Try creating one first")
             return
         try:
-            if self.current_database.table_schemas is None or len(self.current_database.table_schemas) == 0:
+            if (
+                self.current_database.table_schemas is None
+                or len(self.current_database.table_schemas) == 0
+            ):
                 print("No schemas in the database.")
                 return
             if line is None or line == "":
@@ -221,7 +247,7 @@ class DatabaseCLI(cmd.Cmd):
             answer = input()
             if answer == "y":
                 self.current_database = None
-                self.prompt = '(base-cli)$ '
+                self.prompt = "(base-cli)$ "
                 print("Exiting the current database session.")
             else:
                 print("Data base session exit aborted.")
@@ -237,11 +263,27 @@ class DatabaseCLI(cmd.Cmd):
     def do_help(self, arg):
         # Filter out commands when no database is created or in use
         if not self.databases_exist():
-            excluded_commands = ['Create_Table', 'Load_Data', 'Edit_Table', 'Delete_Table', 'Run_Query', 'Print_Tables',
-                                 'Print_Schemas', 'Use_Database', 'List_Databases']
+            excluded_commands = [
+                "Create_Table",
+                "Load_Data",
+                "Edit_Table",
+                "Delete_Table",
+                "Run_Query",
+                "Print_Tables",
+                "Print_Schemas",
+                "Use_Database",
+                "List_Databases",
+            ]
         elif not self.current_database:
-            excluded_commands = ['Create_Table', 'Load_Data', 'Edit_Table', 'Delete_Table', 'Run_Query', 'Print_Tables',
-                                 'Print_Schemas']
+            excluded_commands = [
+                "Create_Table",
+                "Load_Data",
+                "Edit_Table",
+                "Delete_Table",
+                "Run_Query",
+                "Print_Tables",
+                "Print_Schemas",
+            ]
         else:
             excluded_commands = []
 
@@ -255,12 +297,17 @@ class DatabaseCLI(cmd.Cmd):
                 super().do_help(arg)
         else:
             # Display help for all non-excluded commands
-            cmds_doc = [cmd[3:] for cmd in self.get_names() if cmd.startswith('do_')]
+            cmds_doc = [cmd[3:] for cmd in self.get_names() if cmd.startswith("do_")]
             help_struct = {}
             for cmd in cmds_doc:
                 if cmd not in excluded_commands:
                     help_struct[cmd] = 0
-            self.print_topics("Documented commands (type help <topic>):", sorted(help_struct.keys()), 15, 80)
+            self.print_topics(
+                "Documented commands (type help <topic>):",
+                sorted(help_struct.keys()),
+                15,
+                80,
+            )
 
     def default(self, line):
         if line.lower() == "clear":
@@ -270,5 +317,3 @@ class DatabaseCLI(cmd.Cmd):
 
     def emptyline(self):
         pass  # Do nothing on an empty line input
-
-

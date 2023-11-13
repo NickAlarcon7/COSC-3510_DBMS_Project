@@ -205,15 +205,6 @@ class Database:
             # Handle the case where conversion fails
             raise ValueError(f"Error converting value '{value}' to {data_type}: {e}")
 
-    def query_results(self, query):
-        # TODO: This function will be used to execute queries, it will be called from CLI.py
-        # TODO: and will return the results of the query. This function will also be used to
-        # TODO: process the query itself and determine if an index is needed for said table, and also
-        # TODO: call a function to retrieve the index from indexing_structures(tree).
-        # TODO: Additionally, this function will modify or create a temp table for it to work on
-        # TODO: and finally print the results using a pretty table.
-        pass
-
     def print_table(self, table_name):
         if table_name not in self.tables:
             print(f"Table {table_name} does not exist!")
