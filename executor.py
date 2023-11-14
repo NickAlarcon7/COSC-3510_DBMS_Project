@@ -131,74 +131,50 @@ def execute_query(query, database):
     parsed_query = parse(query)
 
     # extract table name from query
-    from_tables = parsed_query["from"]
+    from_table = parsed_query["from"]
     # extract table name from query and flatten it if it is a dictionary
-    if type(from_tables) is dict:
-        table_name = from_tables["value"]
+    if isinstance(from_table, dict):
+        table_name = from_table["value"]
     else:
-        table_name = from_tables
+        table_name = from_table
 
     # extract where clause from query if it exists
     where_clause = parsed_query.get("where")
-    tempTable = {}
+    temp_table = {}
 
     # Use indexing structure to retrieve row for single table queries with where clause
     # e.x. SELECT * FROM sushi WHERE id = 1
     # e.x. SELECT * FROM sushi WHERE id = 1 OR id = 2
     # if query deals with a single table, extract where clause from query if it exists
-    if (
-        type(from_tables) is not list
-        and where_clause is not None
-        and "eq" in where_clause
-    ):
-        tempTable = fetch_index(
-            where_clause["eq"],
-            database.indexing_structures,
-            database.table_schemas,
-            table_name,
-        )
-    elif (
-        type(from_tables) is not list
-        and where_clause is not None
-        and "or" in where_clause
-    ):
-        or_clause = where_clause["or"]
-        # or_clause is a list with two elements; remove non-eq elements
-        or_clause = [eq for eq in or_clause if "eq" in eq]
-        # if there is one eq element in the list, then call fetch_index with that element
-        if len(or_clause) == 1:
-            tempTable = fetch_index(
-                or_clause[0],
+    if not isinstance(from_table, list) and where_clause is not None:
+        if "eq" in where_clause:
+            temp_table = fetch_index(
+                where_clause["eq"],
                 database.indexing_structures,
                 database.table_schemas,
                 table_name,
             )
-        # if there are two eq elements in the list, then call fetch_index on both elements and combine the results
-        elif len(or_clause) == 2:
-            tempTable1 = fetch_index(
-                or_clause[0]["eq"],
+        elif "or" in where_clause:
+            conjunction_clause = where_clause["or"]
+            temp_table = parse_conjunction_for_indexing(
+                conjunction_clause,
                 database.indexing_structures,
                 database.table_schemas,
                 table_name,
             )
-            tempTable2 = fetch_index(
-                or_clause[1]["eq"],
+        elif "and" in where_clause:
+            conjunction_clause = where_clause["and"]
+            temp_table = parse_conjunction_for_indexing(
+                conjunction_clause,
                 database.indexing_structures,
                 database.table_schemas,
                 table_name,
             )
-            if tempTable1 != {} and tempTable2 != {}:
-                tempTable[table_name] = tempTable1[table_name] + tempTable2[table_name]
-            elif tempTable1 != {}:
-                tempTable = tempTable1
-            elif tempTable2 != {}:
-                tempTable = tempTable2
 
-    # if tempTable exists, then set tabls to tempTable
-    if tempTable != {}:
-        tables = tempTable
+    # if temp_table exists, then set tabls to temp_table
+    if temp_table:
+        tables = temp_table
 
-    print("Tables: ", tables)
     return sqlglot_execute(query, tables=tables)
 
 
@@ -267,7 +243,6 @@ def sqlglot_execute(
 
     print()
     print(f"Query finished: {time.time() - now:.5f}s")
-    # print("Query finished: %fs", time.time() - now)
 
     return result
 
@@ -278,7 +253,7 @@ def fetch_index(equality_condition, indexing_structures, table_schemas, table_na
     # extract column name from equality condition array
     column_name = equality_condition[0]
     # extract matching value from equality condition array
-    if type(equality_condition[1]) is dict:
+    if isinstance(equality_condition[1], dict):
         equality_condition[1] = equality_condition[1]["literal"]
     matching_value = equality_condition[1]
     # find out if table has an index, column is a primary key, and matching value is in index
@@ -294,3 +269,42 @@ def fetch_index(equality_condition, indexing_structures, table_schemas, table_na
         return tables
 
     return {}
+
+
+def parse_conjunction_for_indexing(
+    conjunction_clause, indexing_structures, table_schemas, table_name
+):
+    temp_table = {}
+    # conjunction_clause is a list with two elements; remove non-eq elements
+    conjunction_clause = [eq for eq in conjunction_clause if "eq" in eq]
+    # if there is one eq element in the list, then call fetch_index with that element
+    if len(conjunction_clause) == 1:
+        temp_table = fetch_index(
+            conjunction_clause[0],
+            indexing_structures,
+            table_schemas,
+            table_name,
+        )
+    # if there are two eq elements in the list, then call fetch_index on both elements and combine the results
+    elif len(conjunction_clause) == 2:
+        temp_table1 = fetch_index(
+            conjunction_clause[0]["eq"],
+            indexing_structures,
+            table_schemas,
+            table_name,
+        )
+        temp_table2 = fetch_index(
+            conjunction_clause[1]["eq"],
+            indexing_structures,
+            table_schemas,
+            table_name,
+        )
+
+        if temp_table1 and temp_table2:
+            temp_table[table_name] = temp_table1[table_name] + temp_table2[table_name]
+        elif temp_table1:
+            temp_table = temp_table1
+        elif temp_table2:
+            temp_table = temp_table2
+
+    return temp_table

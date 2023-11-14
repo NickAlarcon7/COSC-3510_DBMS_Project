@@ -35,7 +35,7 @@ class Database:
         # Next, add primary key and foreign key constraints
         constraints = table_definition["constraint"]
         # First, convert the constraints to a list if it is a dictionary
-        if type(constraints) is dict:
+        if isinstance(constraints, dict):
             constraints = [constraints]
 
         for constraint in constraints:
@@ -60,7 +60,7 @@ class Database:
 
     def _parse_columns(self, table_definition, schema):
         # First check if table has only one column
-        if type(table_definition["columns"]) is dict:
+        if isinstance(table_definition["columns"], dict):
             columns = [table_definition["columns"]]
         else:
             columns = table_definition["columns"]
@@ -91,7 +91,7 @@ class Database:
         key_columns = constraint[key_type]["columns"]
 
         # if key_columns is a list, then there are multiple keys
-        if type(key_columns) is list:
+        if isinstance(key_columns, list):
             for index, key in enumerate(key_columns):
                 schema[key][key_type] = True
                 # if key is a foreign key, then add the foreign table and column to the column
