@@ -2,6 +2,7 @@ import cmd
 from mo_sql_parsing import parse
 from executor import execute_query
 from create_database import Database
+from prettytable import PrettyTable
 
 
 class DatabaseCLI(cmd.Cmd):
@@ -71,7 +72,7 @@ class DatabaseCLI(cmd.Cmd):
             else:
                 print(f"Invalid command: {line}")
                 return
-            
+
 
     def onecmd(self, line):
         if not self.current_database and line.split()[0] not in (
@@ -240,9 +241,24 @@ class DatabaseCLI(cmd.Cmd):
         try:
             results = execute_query(f"""{line}""", self.current_database)
             print("\nQuery Results:")
-            print(results)
-        except ValueError as e:
+            if results:
+                # Create a PrettyTable instance
+                table = PrettyTable()
+
+                # Set the column names using the 'columns' attribute
+                table.field_names = results.columns
+
+                # Add rows to the table using the 'rows' attribute
+                for row in results.rows:
+                    table.add_row(row)
+
+                print(table)
+            else:
+                print("No data returned.")
+
+        except Exception as e:
             print(f"An error occurred while trying to run query: {e}")
+            return
 
     def do_Print_Tables(self, line):
         """Print all tables in the database or a specific table;"""
