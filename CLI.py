@@ -1,8 +1,15 @@
 import cmd
+from CustomStyle import CustomStyle
 from mo_sql_parsing import parse
+from prompt_toolkit.lexers import PygmentsLexer
 from executor import execute_query
 from create_database import Database
 from prettytable import PrettyTable
+from prompt_toolkit import PromptSession
+from prompt_toolkit.styles import style_from_pygments_cls
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import InMemoryHistory
+from pygments.lexers import SqlLexer
 
 
 class DatabaseCLI(cmd.Cmd):
@@ -11,68 +18,63 @@ class DatabaseCLI(cmd.Cmd):
 
     def __init__(self):
         super().__init__()
+        self.commands = ["CREATE DATABASE", "USE", "CREATE TABLE", "LOAD DATA", "Exit",
+                         "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help"]
+        self.completer = WordCompleter(self.commands, ignore_case=True, match_middle=False)
+        self.session = PromptSession(completer=self.completer, history=InMemoryHistory(),
+                                     lexer=PygmentsLexer(SqlLexer), style=style_from_pygments_cls(CustomStyle))
+
         self.databases = {}
         self.current_database = None  # Current database in use
+
+    def cmdloop(self, intro=None):
+        """Override the cmdloop method to use Prompt Toolkit for input."""
+        if intro is not None:
+            self.intro = intro
+        if self.intro:
+            print(self.intro)
+        stop = None
+        while not stop:
+            try:
+                line = self.session.prompt(self.prompt)
+                stop = self.onecmd(line)
+            except KeyboardInterrupt:
+                continue
+            except EOFError:
+                break
 
     def databases_exist(self):
         return bool(self.databases)
 
     def do_SQL_command(self, line):
-        key_words = ["create", "load", "database", "use", "table", "data"]
-        if line is None or line == "":
+        """Use this command to enter a SQL command. Example: SQL_command CREATE DATABASE mydb;"""
+        if line is None or line.strip() == "":
             print("Enter your SQL command:")
             line = input()
-        parts = line.split()
-        if len(parts) == 1:
-            print(f"Invalid command: {line}")
-            return
-        if len(parts) == 2:
-            part1, part2 = parts
-            if part1.lower() == "use":
-                if not self.databases_exist():
-                    print("No databases exist. Try creating one first")
-                    return
-                self.Use_Database(part2)
-            else:
-                print(f"Invalid command: {parts}")
-                return
-        if len(parts) == 3:
-            part1, part2, part3 = parts
-            if part1.lower() == "create" and part2.lower() == "database":
-                self.Create_Database(part3)
-            else:
-                print(f"Invalid command: {parts}")
-                return
-        if len(parts) == 4:
-            parts = line.split(" ", 2)
-            part1, part2, command = parts
-            if part1.lower() == "load" and part2.lower() == "data":
-                if self.current_database is None:
-                    print("No database in use. Try creating one first")
-                    return
-                self.Load_Data(command)
-            else:
-                print(f"Invalid command: {line}")
-                return
-        if len(parts) > 4:
-            parts = line.split(" ", 2)
-            part1, part2, command = parts
-            if part1.lower() == "create" and part2.lower() == "table":
-                if not self.databases_exist():
-                    print("No databases exist. Try creating one first")
-                    return
-                if self.current_database is None:
-                    print("No database in use. Try creating one first")
-                    return
-                self.Create_Table(line)
-                # print(f"Table created successfully.")
-            elif part1.lower() == "select" and part2 not in key_words:
-                self.Run_Query(line)
 
-            else:
-                print(f"Invalid command: {line}")
-                return
+        command = line.strip().lower()
 
+        try:
+            # Handle 'CREATE DATABASE' command
+            if command.startswith("create database"):
+                database_name = line.split()[2]
+                self.Create_Database(database_name)
+            # Handle 'USE DATABASE' command
+            elif command.startswith("use"):
+                database_name = line.split()[1]
+                self.Use_Database(database_name)
+            # Handle 'CREATE TABLE' and 'LOAD DATA' commands
+            elif command.startswith("create table") or command.startswith("load data"):
+                self.Create_Table(line) if command.startswith("create table") else self.Load_Data(line)
+            # Use 'mo_sql_parsing' for complex queries like 'SELECT'
+            else:
+                parsed_command = parse(line)
+                if "select" in parsed_command:
+                    self.Run_Query(line)
+                else:
+                    print(f"Invalid command: {line}")
+        except Exception as e:
+            print(f"An error occurred while parsing the command: {e}")
 
     def onecmd(self, line):
         if not self.current_database and line.split()[0] not in (
@@ -83,6 +85,8 @@ class DatabaseCLI(cmd.Cmd):
             "?",
             "Print_Tables",
             "Print_Schemas",
+            "clear",
+            "exit"
         ):
             print(
                 f"Please use the 'SQL_command' command to create a database or use an existing one."
@@ -248,11 +252,16 @@ class DatabaseCLI(cmd.Cmd):
                 # Set the column names using the 'columns' attribute
                 table.field_names = results.columns
 
+                # Set horizontal lines between rows
+                table.hrules = 1
+
                 # Add rows to the table using the 'rows' attribute
                 for row in results.rows:
                     table.add_row(row)
 
                 print(table)
+                print()
+
             else:
                 print("No data returned.")
 
@@ -329,7 +338,7 @@ class DatabaseCLI(cmd.Cmd):
         if self.current_database:
             print("Are you sure you want to exit current database session ? (y/n)")
             answer = input()
-            if answer == "y":
+            if answer.lower() == "y":
                 self.current_database = None
                 self.prompt = "(base-cli)$ "
                 print("Exiting the current database session.")
@@ -338,7 +347,7 @@ class DatabaseCLI(cmd.Cmd):
         else:
             print("Are you sure you want to exit the SQL database CLI? (y/n)")
             answer = input()
-            if answer == "y":
+            if answer.lower() == "y":
                 print("Exiting the SQL database CLI.")
                 return True
             else:
@@ -385,6 +394,8 @@ class DatabaseCLI(cmd.Cmd):
     def default(self, line):
         if line.lower() == "clear":
             print("\n" * 100)
+        if line.lower() == "exit":
+            self.do_Exit(None)
         else:
             print(f"Unknown command: {line}")
 

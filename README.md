@@ -71,9 +71,13 @@
 - [x] Use mo-sql-parsing to parse the schema definition and extract type and primary key/foreign key
 - [x] Populate table with entities using LOAD and check for duplicates
 - [x] Create an index tree for each table in the index tree dictionary with name as key and primary key rows as value
-- [ ] Sqlglot defaults to hash join. In the case of a join on two tables with both primary keys, we can create a temp tables by inserting one by one from the index, and then use the temp tables in the join. This is more efficient than hash join. The drawback is temporarily we would have three copies of the same data in memory. Another approach would be to add an ORDER BY
-- [ ] Create simple structure in main.py to allow user to create tables, load data, and query.
+- [x] Sqlglot defaults to hash join. In the case of a join on two tables with both primary keys, we can create a temp tables by inserting one by one from the index, and then use the temp tables in the join. This is more efficient than hash join. The drawback is temporarily we would have three copies of the same data in memory. Another approach would be to add an ORDER BY
+- [x] Create simple structure in main.py to allow user to create tables, load data, and query.
+- [ ] Find a better way to parse CREATE TABLE statements (currently using a crappy method)
+- [ ] Add function Edit_Table
+- [ ] Add function Delete_Table
 
 ## THINGS TO CONSIDER:
 
 - [ ] Maintain the size of a table and expectation of sort status to be used in nested loop vs sorting join
+- [ ] Strengthen the RDBMS by more error checking and exception handling

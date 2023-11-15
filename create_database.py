@@ -155,7 +155,7 @@ class Database:
                 # Add converted_row to the table
                 table.append(converted_row)
 
-                # if indeing structure exists, then add the row to the indexing structure
+                # if indexing structure exists, then add the row to the indexing structure
                 if table_name in self.indexing_structures:
                     indexing_structure = self.indexing_structures[table_name]
                     # Extract the primary key column and its value
@@ -216,11 +216,14 @@ class Database:
         # Set the column names as the fields
         table.field_names = self.table_schemas[table_name].keys()
 
+        # Set horizontal lines to separate rows
+        table.hrules = 1
+
         # Add rows to the table
         for row in self.tables[table_name]:
             table.add_row([row[column] for column in table.field_names])
             # Add a separator after each row
-            table.add_row(["-" * len(str(row[column])) for column in table.field_names])
+            # table.add_row(["-" * len(str(row[column])) for column in table.field_names])
 
         # Remove the last separator line
         table.del_row(-1)

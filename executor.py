@@ -242,7 +242,7 @@ def sqlglot_execute(
     result = OptimizedPythonExecutor(tables=tables_).execute(plan)
 
     print()
-    print(f"Query finished: {time.time() - now:.5f}s")
+    print(f"Query finished in: {time.time() - now:.5f}s")
 
     return result
 
