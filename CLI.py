@@ -16,35 +16,95 @@ class DatabaseCLI(cmd.Cmd):
     def databases_exist(self):
         return bool(self.databases)
 
+    def do_SQL_command(self, line):
+        key_words = ["create", "load", "database", "use", "table", "data"]
+        if line is None or line == "":
+            print("Enter your SQL command:")
+            line = input()
+        parts = line.split()
+        if len(parts) == 1:
+            print(f"Invalid command: {line}")
+            return
+        if len(parts) == 2:
+            part1, part2 = parts
+            if part1.lower() == "use":
+                if not self.databases_exist():
+                    print("No databases exist. Try creating one first")
+                    return
+                self.Use_Database(part2)
+            else:
+                print(f"Invalid command: {parts}")
+                return
+        if len(parts) == 3:
+            part1, part2, part3 = parts
+            if part1.lower() == "create" and part2.lower() == "database":
+                self.Create_Database(part3)
+            else:
+                print(f"Invalid command: {parts}")
+                return
+        if len(parts) == 4:
+            parts = line.split(" ", 2)
+            part1, part2, command = parts
+            if part1.lower() == "load" and part2.lower() == "data":
+                if self.current_database is None:
+                    print("No database in use. Try creating one first")
+                    return
+                self.Load_Data(command)
+            else:
+                print(f"Invalid command: {line}")
+                return
+        if len(parts) > 4:
+            parts = line.split(" ", 2)
+            part1, part2, command = parts
+            if part1.lower() == "create" and part2.lower() == "table":
+                if not self.databases_exist():
+                    print("No databases exist. Try creating one first")
+                    return
+                if self.current_database is None:
+                    print("No database in use. Try creating one first")
+                    return
+                self.Create_Table(line)
+                # print(f"Table created successfully.")
+            elif part1.lower() == "select" and part2 not in key_words:
+                self.Run_Query(line)
+
+            else:
+                print(f"Invalid command: {line}")
+                return
+            
+
     def onecmd(self, line):
         if not self.current_database and line.split()[0] not in (
             "help",
-            "Create_Database",
+            "SQL_command",
             "List_Databases",
             "Exit",
-            "Use_Database",
             "?",
+            "Print_Tables",
+            "Print_Schemas",
         ):
             print(
-                "No database is currently in use. Please create or use a database first."
+                f"Please use the 'SQL_command' command to create a database or use an existing one."
             )
             return False
         else:
             return super().onecmd(line)
 
-    def do_Create_Database(self, database_name):
-        """Create a new database: CREATE database_name;"""
+    def Create_Database(self, database_name):
+        """Create a new database: CREATE DATABASE database_name;"""
         if database_name is None or database_name == "":
-            print("Enter your CREATE <database_name> command:")
+            print("Enter your CREATE DATABASE <database_name> command:")
             database_name = input()
         parts = database_name.split()
-        if len(parts) == 2:
-            part1, database_name = parts
-            if part1.lower() != "create":
+        if len(parts) == 3:
+            part1, part2, database_name = parts
+            if part1.lower() != "create" and part2.lower() != "database":
                 print(f"Invalid command: {part1}")
                 return
+        elif len(parts) == 1:
+            database_name = parts[0]
         else:
-            print(f"Invalid number of arguments.")
+            print(f"Invalid command: {parts}")
             return
         if database_name in self.databases:
             print(f"A database with the name '{database_name}' already exists.")
@@ -54,7 +114,7 @@ class DatabaseCLI(cmd.Cmd):
             self.prompt = f"({database_name}-cli)> "
             print(f"Database '{database_name}' created successfully.")
 
-    def do_Use_Database(self, database_name):
+    def Use_Database(self, database_name):
         """Switch to an existing database: USE database_name;"""
         if database_name is None or database_name == "":
             print("Enter your USE <database_name> command:")
@@ -65,8 +125,10 @@ class DatabaseCLI(cmd.Cmd):
             if part1.lower() != "use":
                 print(f"Invalid command: {part1}")
                 return
+        elif len(parts) == 1:
+            database_name = parts[0]
         else:
-            print(f"Invalid number of arguments.")
+            print(f"Invalid command: {parts}")
             return
         if database_name not in self.databases:
             print(f"No database found with the name '{database_name}'.")
@@ -75,7 +137,7 @@ class DatabaseCLI(cmd.Cmd):
             self.prompt = f"({database_name}-cli)> "
             print(f"Switched to database '{database_name}'.")
 
-    def do_Create_Table(self, arg):
+    def Create_Table(self, arg):
         """Create a new table: CREATE TABLE ..."""
         if self.current_database is None:
             print("No database in use. Try creating one first")
@@ -93,7 +155,7 @@ class DatabaseCLI(cmd.Cmd):
         except ValueError as e:
             print(f"An error occurred: {e}")
 
-    def do_Load_Data(self, arg):
+    def Load_Data(self, arg):
         """Load data into a table from a CSV file: LOAD DATA <table_name> <csv_file_path>"""
         if self.current_database is None:
             print("No database in use. Try creating one first")
@@ -120,15 +182,21 @@ class DatabaseCLI(cmd.Cmd):
                 self.current_database.populate_table_from_csv(table_name, csv_path)
                 print(f"Data loaded into table {table_name} from {csv_path}.")
             else:
-                print(f"Invalid number of arguments.")
+                if len(parts) == 2:
+                    table_name, csv_path = parts
+                    if table_name not in self.current_database.tables:
+                        print(f"Table {table_name} does not exist.")
+                        return
+                    self.current_database.populate_table_from_csv(table_name, csv_path)
+                    print(f"Data loaded into table {table_name} from {csv_path}.")
         except ValueError as e:
             print(f"An error occurred: {e}")
 
-    def do_Edit_Table(self, line):
+    def Edit_Table(self, line):
         """Edit an existing table: EDIT TABLE table_name;"""
         print("Edit table not implemented yet.")
 
-    def do_Delete_Table(self, line):
+    def Delete_Table(self, line):
         """Delete an existing table: DELETE TABLE table_name;"""
         if (
             self.current_database.tables is None
@@ -155,7 +223,7 @@ class DatabaseCLI(cmd.Cmd):
         except ValueError as e:
             print(f"An error occurred while trying delete_table: {e}")
 
-    def do_Run_Query(self, line):
+    def Run_Query(self, line):
         """Run a query on the database: QUERY your_sql_query;"""
         if self.current_database is None:
             print("No database in use. Try creating one first")
@@ -264,23 +332,12 @@ class DatabaseCLI(cmd.Cmd):
         # Filter out commands when no database is created or in use
         if not self.databases_exist():
             excluded_commands = [
-                "Create_Table",
-                "Load_Data",
-                "Edit_Table",
-                "Delete_Table",
-                "Run_Query",
                 "Print_Tables",
                 "Print_Schemas",
-                "Use_Database",
-                "List_Databases",
+                "List_Databases"
             ]
         elif not self.current_database:
             excluded_commands = [
-                "Create_Table",
-                "Load_Data",
-                "Edit_Table",
-                "Delete_Table",
-                "Run_Query",
                 "Print_Tables",
                 "Print_Schemas",
             ]

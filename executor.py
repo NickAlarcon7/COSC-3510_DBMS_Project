@@ -171,7 +171,7 @@ def execute_query(query, database):
                 table_name,
             )
 
-    # if temp_table exists, then set tabls to temp_table
+    # if temp_table exists, then set tables to temp_table
     if temp_table:
         tables = temp_table
 
