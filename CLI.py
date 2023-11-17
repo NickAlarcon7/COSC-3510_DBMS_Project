@@ -157,7 +157,7 @@ class DatabaseCLI(cmd.Cmd):
                 print(f"Table created successfully.")
             else:
                 print(f"The command didn't specify a create table action.")
-        except ValueError as e:
+        except Exception as e:
             print(f"An error occurred: {e}")
 
     def Load_Data(self, arg):
@@ -201,7 +201,7 @@ class DatabaseCLI(cmd.Cmd):
         """Edit an existing table: EDIT TABLE table_name;"""
         print("Edit table not implemented yet.")
 
-    def Delete_Table(self, line):
+    def Drop_Table(self, line):
         """Delete an existing table: DELETE TABLE table_name;"""
         if (
             self.current_database.tables is None

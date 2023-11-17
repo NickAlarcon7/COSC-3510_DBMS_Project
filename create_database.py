@@ -232,3 +232,14 @@ class Database:
         table.header = True
         table.border = True
         print(table)
+
+    def insert(self, list_of_columns, values):
+        pass
+
+    def delete(self, table_name, statement):
+        pass
+
+    def update(self, list_of_assignments, statement):
+        pass
+
+

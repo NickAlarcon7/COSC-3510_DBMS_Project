@@ -15,5 +15,5 @@ SQL_command LOAD DATA orders /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/CO
 ## CREATE TABLE Orders (OrderID INT PRIMARY KEY, OrderDate DATE, NewCustomerID INT, NewCustomerName VARCHAR(255), FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName));
 ## Not using for test
 
-SQL_command SELECT o.user_id, i.order_id, i.sushi_id FROM orders o, order_items i WHERE o.id = i.order_id ORDER BY i.sushi_id
+SQL_command SELECT o.user_id, i.order_id, i.sushi_id FROM orders o, order_items i WHERE o.id = i.order_id ORDER BY i.sushi_id DESC
 SQL_command SELECT o.user_id, SUM(s.price) AS price FROM orders o JOIN order_items i ON o.id = i.order_id JOIN sushi s ON i.sushi_id = s.id GROUP BY o.user_id
