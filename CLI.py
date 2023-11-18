@@ -18,8 +18,9 @@ class DatabaseCLI(cmd.Cmd):
 
     def __init__(self):
         super().__init__()
-        self.commands = ["CREATE DATABASE", "USE", "CREATE TABLE", "LOAD DATA", "Exit",
-                         "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help"]
+        self.commands = ["CREATE", "DATABASE", "USE", "CREATE", "TABLE", "LOAD", "DATA", "Exit", "INSERT", "INTO",
+                         "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help",
+                         "UPDATE", "SET", "DELETE", "FROM", "WHERE"]
         self.completer = WordCompleter(self.commands, ignore_case=True, match_middle=False)
         self.session = PromptSession(completer=self.completer, history=InMemoryHistory(),
                                      lexer=PygmentsLexer(SqlLexer), style=style_from_pygments_cls(CustomStyle))
@@ -64,9 +65,17 @@ class DatabaseCLI(cmd.Cmd):
                 database_name = line.split()[1]
                 self.Use_Database(database_name)
             # Handle 'CREATE TABLE' and 'LOAD DATA' commands
-            elif command.startswith("create table") or command.startswith("load data"):
-                self.Create_Table(line) if command.startswith("create table") else self.Load_Data(line)
-            # Use 'mo_sql_parsing' for complex queries like 'SELECT'
+            elif command.startswith("create table"):
+                self.Create_Table(line)
+            elif command.startswith("load data"):
+                self.Load_Data(line)
+            elif command.startswith("insert into"):
+                self.insert_into(line)
+            elif command.startswith("delete from"):
+                self.delete_from(line)
+            elif command.startswith("update"):
+                self.update(line)
+
             else:
                 parsed_command = parse(line)
                 if "select" in parsed_command:
@@ -94,6 +103,65 @@ class DatabaseCLI(cmd.Cmd):
             return False
         else:
             return super().onecmd(line)
+
+    def insert_into(self, parsed_command):
+        if self.current_database is None:
+            print("No database selected.")
+            return
+
+        try:
+            table_name = parsed_command.get('insert')
+            columns = parsed_command.get('columns', [])
+            values = parsed_command.get('values',)
+            # Assuming values is a list of tuples or a single tuple
+
+            if not values:
+                print("No values provided for insertion")
+                return
+
+            # Call the insert method of the current database
+            self.current_database.insert(table_name, columns, values)
+            print(f"Data inserted into table {table_name} successfully.")
+        except Exception as e:
+            print(f"An error occurred while trying to insert data: {e}")
+
+    def delete_from(self, parsed_command):
+        if self.current_database is None:
+            print("No database selected.")
+            return
+        try:
+            table_name = parsed_command.get('delete')
+            where_clause = parsed_command.get('where')
+            # The where clause is a dictionary representing the condition
+
+            print("Are you sure you want to delete data from table {table_name}? (y/n)")
+            answer = input()
+            if answer.lower() == "y":
+                # Call the delete method of the current database
+                self.current_database.delete(table_name, where_clause)
+                print(f"Data deleted from table {table_name} successfully.")
+            else:
+                print(f"Data not deleted from table {table_name}.")
+        except Exception as e:
+            print(f"An error occurred while trying to delete data: {e}")
+
+    def update(self, parsed_command):
+        if self.current_database is None:
+            print("No database selected.")
+            return
+
+        try:
+            table_name = parsed_command.get('update')
+            assignments = parsed_command.get('set')
+            where_clause = parsed_command.get('where')
+            # The assignments are typically a dictionary of column-value pairs
+            # The where_clause is a dictionary representing the condition
+
+            # Call the update method of the current database
+            self.current_database.update(table_name, assignments, where_clause)
+            print(f"Data updated in table {table_name} successfully.")
+        except Exception as e:
+            print(f"An error occurred while trying to update data: {e}")
 
     def Create_Database(self, database_name):
         """Create a new database: CREATE DATABASE database_name;"""
