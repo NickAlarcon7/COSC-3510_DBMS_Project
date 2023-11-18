@@ -154,6 +154,10 @@ class Database:
                     column: self._convert_type(row[column], schema[column]["type"])
                     for column in row
                 }
+                # ignore the new row if it already exists in the table
+                if converted_row in table:
+                    print(f"Duplicate row: {converted_row}. Skipping...")
+                    continue
                 # if indexing structure exists, then add the row to the indexing structure
                 if table_name in self.indexing_structures:
                     indexing_structure = self.indexing_structures[table_name]
