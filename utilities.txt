@@ -96,3 +96,16 @@
         "constraint": {"primary_key": {"columns": "id"}},
     }
 }
+
+{
+    "query": {"select": [{"value": 5}, {"value": "Herbert"}, {"value": 200}]},
+    "insert": "EMPLOYEE",
+}
+
+{"set": {"salary": {"mul": ["salary", 1.1]}}, "update": "EMPLOYEE"}
+
+{
+    "set": {"salary": 150.0},
+    "where": {"eq": ["name", {"literal": "John"}]},
+    "update": "EMPLOYEE",
+}

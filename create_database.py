@@ -152,9 +152,6 @@ class Database:
                     column: self._convert_type(row[column], schema[column]["type"])
                     for column in row
                 }
-                # Add converted_row to the table
-                table.append(converted_row)
-
                 # if indexing structure exists, then add the row to the indexing structure
                 if table_name in self.indexing_structures:
                     indexing_structure = self.indexing_structures[table_name]
@@ -165,13 +162,17 @@ class Database:
                         if "primary_key" in schema[column]
                     )
                     primary_key_value = converted_row[primary_key_column]
-                    # Check if the primary key already exists
+                    # ignore the new row with a duplicate primary key
                     if primary_key_value in indexing_structure:
-                        raise ValueError(
-                            f"Duplicate primary key: {primary_key_value} already exists in table {table_name}!"
+                        print(
+                            f"Duplicate primary key: {primary_key_value}. Skipping..."
                         )
+                        continue
                     # Add converted_row to the indexing structure
                     indexing_structure.insert(primary_key_value, converted_row)
+
+                # Add converted_row to the table
+                table.append(converted_row)
 
     def _convert_type(self, value, data_type):
         try:
@@ -225,25 +226,19 @@ class Database:
             # Add a separator after each row
             # table.add_row(["-" * len(str(row[column])) for column in table.field_names])
 
-        # Remove the last separator line
-        table.del_row(-1)
-
         # Print the table with a border and header line
         table.header = True
         table.border = True
         print(table)
 
-    def insert(self, list_of_columns, values):
+    def insert(self, table_name, values):
         pass
 
-    def delete(self, table_name, statement):
+    def delete(self, table_name, where_clause):
         pass
 
-    def update(self, list_of_assignments, statement):
+    def update(self, table_name, assignments, where_clause):
         pass
 
     def drop_table(self, table_name):
         pass
-
-
-

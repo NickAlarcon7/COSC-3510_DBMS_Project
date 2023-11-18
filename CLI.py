@@ -18,12 +18,39 @@ class DatabaseCLI(cmd.Cmd):
 
     def __init__(self):
         super().__init__()
-        self.commands = ["CREATE", "DATABASE", "USE", "TABLE", "LOAD", "DATA", "Exit", "INSERT", "INTO",
-                         "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help",
-                         "UPDATE", "SET", "DELETE", "FROM", "WHERE", "DROP"]
-        self.completer = WordCompleter(self.commands, ignore_case=True, match_middle=False)
-        self.session = PromptSession(completer=self.completer, history=InMemoryHistory(),
-                                     lexer=PygmentsLexer(SqlLexer), style=style_from_pygments_cls(CustomStyle))
+        self.commands = [
+            "CREATE",
+            "DATABASE",
+            "USE",
+            "TABLE",
+            "LOAD",
+            "DATA",
+            "Exit",
+            "INSERT",
+            "INTO",
+            "SELECT",
+            "Print_Tables",
+            "Print_Schemas",
+            "List_Databases",
+            "SQL_command",
+            "clear",
+            "help",
+            "UPDATE",
+            "SET",
+            "DELETE",
+            "FROM",
+            "WHERE",
+            "DROP",
+        ]
+        self.completer = WordCompleter(
+            self.commands, ignore_case=True, match_middle=False
+        )
+        self.session = PromptSession(
+            completer=self.completer,
+            history=InMemoryHistory(),
+            lexer=PygmentsLexer(SqlLexer),
+            style=style_from_pygments_cls(CustomStyle),
+        )
 
         self.databases = {}
         self.current_database = None  # Current database in use
@@ -101,7 +128,7 @@ class DatabaseCLI(cmd.Cmd):
             "Print_Tables",
             "Print_Schemas",
             "clear",
-            "exit"
+            "exit",
         ):
             print(
                 f"Please use the 'SQL_command' command to create a database or use an existing one."
@@ -116,17 +143,17 @@ class DatabaseCLI(cmd.Cmd):
             return
 
         try:
-            table_name = parsed_command.get('insert')
-            columns = parsed_command.get('columns', [])
-            values = parsed_command.get('values',)
-            # Assuming values is a list of tuples or a single tuple
+            table_name = parsed_command.get("insert")
+            values = parsed_command.get(
+                "query",
+            )
 
             if not values:
                 print("No values provided for insertion")
                 return
 
             # Call the insert method of the current database
-            self.current_database.insert(table_name, columns, values)
+            self.current_database.insert(table_name, values)
             print(f"Data inserted into table {table_name} successfully.")
         except Exception as e:
             print(f"An error occurred while trying to insert data: {e}")
@@ -136,8 +163,8 @@ class DatabaseCLI(cmd.Cmd):
             print("No database selected.")
             return
         try:
-            table_name = parsed_command.get('delete')
-            where_clause = parsed_command.get('where')
+            table_name = parsed_command.get("delete")
+            where_clause = parsed_command.get("where")
             # The where clause is a dictionary representing the condition
 
             print("Are you sure you want to delete data from table {table_name}? (y/n)")
@@ -157,9 +184,9 @@ class DatabaseCLI(cmd.Cmd):
             return
 
         try:
-            table_name = parsed_command.get('update')
-            assignments = parsed_command.get('set')
-            where_clause = parsed_command.get('where')
+            table_name = parsed_command.get("update")
+            assignments = parsed_command.get("set")
+            where_clause = parsed_command.get("where")
             # The assignments are typically a dictionary of column-value pairs
             # The where_clause is a dictionary representing the condition
 
@@ -277,7 +304,7 @@ class DatabaseCLI(cmd.Cmd):
             return
 
         try:
-            table_name = parsed_command.get('drop')
+            table_name = parsed_command.get("drop")
             if table_name not in self.current_database.tables:
                 print(f"Table {table_name} does not exist.")
                 return
@@ -421,11 +448,7 @@ class DatabaseCLI(cmd.Cmd):
     def do_help(self, arg):
         # Filter out commands when no database is created or in use
         if not self.databases_exist():
-            excluded_commands = [
-                "Print_Tables",
-                "Print_Schemas",
-                "List_Databases"
-            ]
+            excluded_commands = ["Print_Tables", "Print_Schemas", "List_Databases"]
         elif not self.current_database:
             excluded_commands = [
                 "Print_Tables",

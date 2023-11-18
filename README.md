@@ -5,7 +5,7 @@
 ## Architecture:
 
 - A SQL parser: use mo-sql to identify CREATE TABLE statements. For column data type, we explicitly support INT/INTEGER, FLOAT, DECIMAL, BOOLEAN, VARCHAR. Everything else is treated as string. We cannot enforce the length of VARCHAR since we treat it as string.
-- An indexing structure: a BTrees.OOBTree with single attribute primary key as key and a tuple as value (row of data)
+- An indexing structure: a BTrees.OOBTree with single attribute primary key as key and a tuple as value (row of data). We use the indexing structure to check for duplicates when inserting data. We mirror the IGNORE keyword behavior in MySQL by skipping duplicate rows.
 - A query optimizer: use sqlglot to optimize query **Need to work on this**
 - An execution engine: wrap sqlglot executor with index support
 
@@ -73,7 +73,7 @@
 - [x] Create an index tree for each table in the index tree dictionary with name as key and primary key rows as value
 - [x] Sqlglot defaults to hash join. In the case of a join on two tables with both primary keys, we can create a temp tables by inserting one by one from the index, and then use the temp tables in the join. This is more efficient than hash join. The drawback is temporarily we would have three copies of the same data in memory. Another approach would be to add an ORDER BY
 - [x] Create simple structure in main.py to allow user to create tables, load data, and query.
-- [ ] Find a better way to parse CREATE TABLE statements (currently using a crappy method)
+- [x] Find a better way to parse CREATE TABLE statements (currently using a crappy method)
 - [ ] Add function Edit_Table
 - [ ] Add function Delete_Table
 
