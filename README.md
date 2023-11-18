@@ -60,6 +60,11 @@
   }
   ```
 
+## SQL Commands:
+
+- > **DROP TABLE table_name** - drop table from tables, table_schemas, and indexing_structures (if exists)
+- > **DELETE FROM taable_name WHERE column_name = value** - delete row from table with matching column_name and value. If where clause is empty, delete all rows from table
+
 ## Notes:
 
 - > A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. Input csv file must contain a header of column names. If input value is empty string or whitespace, and column is not constrained by NOT NULL or primary key, set the value to NONE and process as usual. However, skip rows where it contains null when it should not. We also check for single attribute primary key to insert into index strucuture.

@@ -219,9 +219,9 @@ class DatabaseCLI(cmd.Cmd):
 
             if answer.lower() == "y":
                 # Call the delete method of the current database
-                self.current_database.delete(table_name, where_clause)
+                deletion_status = self.current_database.delete(table_name, where_clause)
                 self.console.print(
-                    f"Data deleted from table {table_name} successfully.",
+                    f"{deletion_status}",
                     style=bright_green_style,
                 )
             else:
@@ -406,7 +406,7 @@ class DatabaseCLI(cmd.Cmd):
             return
 
         try:
-            table_name = parsed_command.get("drop")
+            table_name = parsed_command.get("drop").get("table")
             if table_name not in self.current_database.tables:
                 self.console.print(
                     f"Table {table_name} does not exist.", style=deep_red_style

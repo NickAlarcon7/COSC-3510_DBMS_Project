@@ -51,7 +51,7 @@ class Database:
                 raise ValueError(f"Invalid constraint: {constraint}")
 
         # since inline primary key is not included in constraint, we need to check to ensure primary key exists
-        primary_key_count = self._count_primary_key_(schema)
+        primary_key_count = self._count_primary_key(schema)
         if primary_key_count == 0:
             raise ValueError("No primary key specified!")
         # if key is a single attribute primary key, then add an entry to the indexing structure
@@ -115,7 +115,7 @@ class Database:
                     "column": key_references["columns"],
                 }
 
-    def _count_primary_key_(self, schema):
+    def _count_primary_key(self, schema):
         count = 0
         for column in schema:
             if "primary_key" in schema[column]:
@@ -259,10 +259,57 @@ class Database:
         pass
 
     def delete(self, table_name, where_clause):
-        pass
+        table = self.tables[table_name]
+
+        # if table is empty, then return early
+        if not table:
+            return "Table is empty!"
+        # if where_clause is None, then delete all rows in the table
+        if where_clause is None:
+            self.tables[table_name] = []
+            if table_name in self.indexing_structures:
+                self.indexing_structures[table_name].clear()
+            return "All rows successfully deleted!"
+
+        # Only support deleting with equality condition for now
+        if "eq" in where_clause:
+            equality_condition = where_clause["eq"]
+            # extract column name from equality condition array
+            column_name = equality_condition[0]
+            # flatten and extract matching value from equality condition array
+            if isinstance(equality_condition[1], dict):
+                equality_condition[1] = equality_condition[1]["literal"]
+            matching_value = equality_condition[1]
+
+            # find row in tables[table_name] that matches the column name and matching value
+            for row in table:
+                if row[column_name] == matching_value:
+                    # if indexing structure exists, then remove the row from the indexing structure
+                    if table_name in self.indexing_structures:
+                        # extract primary key column name and value
+                        primary_key_column = next(
+                            column
+                            for column in row
+                            if "primary_key" in self.table_schemas[table_name][column]
+                        )
+                        primary_key_value = row[primary_key_column]
+
+                        self.indexing_structures[table_name].pop(primary_key_value)
+
+                    # remove the row from the indexing structure
+                    table.remove(row)
+
+            return f"Row with {column_name} = {matching_value} successfully deleted!"
+        else:
+            raise ValueError(
+                f"Invalid where clause: {where_clause}. Current supported format: DELETE FROM EMPLOYEE WHERE dept = 5"
+            )
 
     def update(self, table_name, assignments, where_clause):
         pass
 
     def drop_table(self, table_name):
-        pass
+        del self.tables[table_name]
+        del self.table_schemas[table_name]
+        if table_name in self.indexing_structures:
+            del self.indexing_structures[table_name]

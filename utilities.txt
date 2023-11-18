@@ -109,3 +109,5 @@
     "where": {"eq": ["name", {"literal": "John"}]},
     "update": "EMPLOYEE",
 }
+
+{"where": {"eq": ["dept", 5]}, "delete": "EMPLOYEE"}

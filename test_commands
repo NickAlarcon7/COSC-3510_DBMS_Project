@@ -17,32 +17,3 @@ SQL_command LOAD DATA orders /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/CO
 
 SQL_command SELECT o.user_id, i.order_id, i.sushi_id FROM orders o, order_items i WHERE o.id = i.order_id ORDER BY i.sushi_id DESC
 SQL_command SELECT o.user_id, SUM(s.price) AS price FROM orders o JOIN order_items i ON o.id = i.order_id JOIN sushi s ON i.sushi_id = s.id GROUP BY o.user_id
-
-### OLD code for drop_table
-"""Delete an existing table: DELETE TABLE table_name;"""
-        if (
-            self.current_database.tables is None
-            or len(self.current_database.tables) == 0
-        ):
-            print("No tables in the database. Try creating one first")
-            return
-        if line is None or line == "":
-            print("Enter your DELETE TABLE command:")
-            line = input()
-        try:
-            # split line and extract table name
-            line = line.split()[2]
-            if line in self.current_database.tables:
-                print(f"Are you sure you want to delete table {line}? (y/n)")
-                answer = input()
-                if answer == "y":
-                    del self.current_database.tables[line]
-                    print(f"Table {line} deleted successfully.")
-                else:
-                    print(f"Table {line} not deleted.")
-            else:
-                print(f"Table {line} does not exist.")
-        except ValueError as e:
-            print(f"An error occurred while trying delete_table: {e}")
-
-### OLD code for drop_table
