@@ -181,6 +181,8 @@ def execute_query(query, database):
                 selected_schema,
                 table_name,
             )
+        else:
+            temp_table = selected_table
 
     # if temp_table exists, then set tables to temp_table
     if temp_table:

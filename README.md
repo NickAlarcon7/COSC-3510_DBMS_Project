@@ -62,7 +62,7 @@
 
 ## Notes:
 
-- > A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. We also check for single attribute primary key to insert into index strucuture.
+- > A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. Input csv file must contain a header of column names. If input value is empty string or whitespace, and column is not constrained by NOT NULL or primary key, set the value to NONE and process as usual. However, skip rows where it contains null when it should not. We also check for single attribute primary key to insert into index strucuture.
 - > When a table is created with single attribute primary key, indexing happens under the hood.
   > This app does not support CREATE INDEX statements
 - > Since sqlglot does not support an alternate access path with index, this app detects when

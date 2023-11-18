@@ -122,19 +122,18 @@ class Database:
                 count += 1
         return count
 
-    def populate_table_from_csv(self, table_name, csv_filename):
+    def load_from_csv(self, table_name, csv_filename):
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
-        table = self.tables[table_name]
+
         if table_name not in self.table_schemas:
             raise ValueError(f"Schema for {table_name} does not exist!")
-        schema = self.table_schemas[table_name]
 
         with open(
             csv_filename, "r", encoding="utf-8"
         ) as file:  # Added encoding specification
             reader = csv.DictReader(file)
-            expected_columns = set(schema.keys())
+            expected_columns = set(self.table_schemas[table_name].keys())
             csv_columns = set(reader.fieldnames)
 
             if not csv_columns:
@@ -148,69 +147,89 @@ class Database:
                     f"CSV columns do not match table columns for {table_name}!"
                 )
 
-            for row in reader:
-                # Convert types as per the schema before appending
+            self._populate_table_from_csv(reader, table_name)
+
+    def _populate_table_from_csv(self, reader, table_name):
+        table = self.tables[table_name]
+        schema = self.table_schemas[table_name]
+
+        for row in reader:
+            # Convert types as per the schema before appending
+            try:
                 converted_row = {
-                    column: self._convert_type(row[column], schema[column]["type"])
+                    column: self._convert_type(
+                        row[column],
+                        schema[column]["type"],
+                        schema[column].get("nullable", True),
+                        schema[column].get("primary_key", False),
+                    )
                     for column in row
                 }
-                # ignore the new row if it already exists in the table
-                if converted_row in table:
-                    print(f"Duplicate row: {converted_row}. Skipping...")
+            # ignore the new row if it cannot be converted to the correct type
+            except ValueError as e:
+                print(f"Error converting row {row}. Skipping...: {e}")
+                continue
+
+            # ignore the new row if it already exists in the table
+            if converted_row in table:
+                print(f"Duplicate row: {converted_row}. Skipping...")
+                continue
+            # if indexing structure exists, then add the row to the indexing structure
+            if table_name in self.indexing_structures:
+                indexing_structure = self.indexing_structures[table_name]
+                # Extract the primary key column and its value
+                primary_key_column = next(
+                    column
+                    for column in converted_row
+                    if "primary_key" in schema[column]
+                )
+                primary_key_value = converted_row[primary_key_column]
+                # ignore the new row with a duplicate primary key
+                if primary_key_value in indexing_structure:
+                    print(f"Duplicate primary key: {primary_key_value}. Skipping...")
                     continue
-                # if indexing structure exists, then add the row to the indexing structure
-                if table_name in self.indexing_structures:
-                    indexing_structure = self.indexing_structures[table_name]
-                    # Extract the primary key column and its value
-                    primary_key_column = next(
-                        column
-                        for column in converted_row
-                        if "primary_key" in schema[column]
-                    )
-                    primary_key_value = converted_row[primary_key_column]
-                    # ignore the new row with a duplicate primary key
-                    if primary_key_value in indexing_structure:
-                        print(
-                            f"Duplicate primary key: {primary_key_value}. Skipping..."
-                        )
-                        continue
-                    # Add converted_row to the indexing structure
-                    indexing_structure.insert(primary_key_value, converted_row)
+                # Add converted_row to the indexing structure
+                indexing_structure.insert(primary_key_value, converted_row)
 
-                # Add converted_row to the table
-                table.append(converted_row)
+            # Add converted_row to the table
+            table.append(converted_row)
 
-    def _convert_type(self, value, data_type):
-        try:
-            # Handle integer type
-            if data_type == "int":
-                return int(value)
-            # Handle floating point type
-            elif data_type == "float":
-                return float(value)
-            # Handle boolean type
-            elif data_type == "varchar":
-                return str(value)
-            elif data_type == "boolean":
-                if value in ("true", "1", "t", "y", "yes"):
-                    return True
-                elif value in ("false", "0", "f", "n", "no"):
-                    return False
-                else:
-                    raise ValueError(f"Invalid boolean value: {value}")
-            # Handle decimal type with precision and scale
-            elif isinstance(data_type, dict) and "decimal" in data_type:
-                precision, scale = data_type["decimal"]
-                getcontext().prec = precision
-                # Handle decimal type with precision and scale
-                results = Decimal(value).quantize(Decimal("1." + "0" * scale))
-                return float(results)
-            # Handle other data types that are strings
+    def _convert_type(self, value, data_type, nullable, primary_key):
+        # Handle null values
+        if value == "" or value.isspace():
+            # if NOT NULL is not set and column is not a primary key, then return None
+            if nullable and not primary_key:
+                return None
             else:
-                return str(value)
-        except ValueError as e:
-            # Handle the case where conversion fails
-            raise ValueError(f"Error converting value '{value}' to {data_type}: {e}")
+                raise ValueError(
+                    f"Column cannot be null. Failed to convert to {data_type}"
+                )
+        # Handle integer type
+        if data_type == "int":
+            return int(value)
+        # Handle floating point type
+        elif data_type == "float":
+            return float(value)
+        # Handle boolean type
+        elif data_type == "varchar":
+            return str(value)
+        elif data_type == "boolean":
+            if value in ("true", "1", "t", "y", "yes"):
+                return True
+            elif value in ("false", "0", "f", "n", "no"):
+                return False
+            else:
+                raise ValueError(f"Invalid boolean value: {value}")
+        # Handle decimal type with precision and scale
+        elif isinstance(data_type, dict) and "decimal" in data_type:
+            precision, scale = data_type["decimal"]
+            getcontext().prec = precision
+            # Handle decimal type with precision and scale
+            results = Decimal(value).quantize(Decimal("1." + "0" * scale))
+            return float(results)
+        # Handle other data types that are strings
+        else:
+            return str(value)
 
     def print_table(self, table_name):
         if table_name not in self.tables:
