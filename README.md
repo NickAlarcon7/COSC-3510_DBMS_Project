@@ -2,7 +2,7 @@
 ### COSC-3510_DBMS_Project
 **Authors: Nick Alarcon, Tony Chen**
 
-![](/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/nuSQLlogo.png)
+![](nuSQLlogo.png)
 
 ## Architecture:
 
