@@ -18,9 +18,9 @@ class DatabaseCLI(cmd.Cmd):
 
     def __init__(self):
         super().__init__()
-        self.commands = ["CREATE", "DATABASE", "USE", "CREATE", "TABLE", "LOAD", "DATA", "Exit", "INSERT", "INTO",
+        self.commands = ["CREATE", "DATABASE", "USE", "TABLE", "LOAD", "DATA", "Exit", "INSERT", "INTO",
                          "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help",
-                         "UPDATE", "SET", "DELETE", "FROM", "WHERE"]
+                         "UPDATE", "SET", "DELETE", "FROM", "WHERE", "DROP"]
         self.completer = WordCompleter(self.commands, ignore_case=True, match_middle=False)
         self.session = PromptSession(completer=self.completer, history=InMemoryHistory(),
                                      lexer=PygmentsLexer(SqlLexer), style=style_from_pygments_cls(CustomStyle))
@@ -59,27 +59,33 @@ class DatabaseCLI(cmd.Cmd):
             # Handle 'CREATE DATABASE' command
             if command.startswith("create database"):
                 database_name = line.split()[2]
-                self.Create_Database(database_name)
+                self.create_Database(database_name)
             # Handle 'USE DATABASE' command
             elif command.startswith("use"):
                 database_name = line.split()[1]
-                self.Use_Database(database_name)
+                self.use_Database(database_name)
             # Handle 'CREATE TABLE' and 'LOAD DATA' commands
             elif command.startswith("create table"):
-                self.Create_Table(line)
+                self.create_Table(line)
             elif command.startswith("load data"):
-                self.Load_Data(line)
+                self.load_Data(line)
             elif command.startswith("insert into"):
-                self.insert_into(line)
+                parsed_command = parse(line)
+                self.insert_into(parsed_command)
             elif command.startswith("delete from"):
-                self.delete_from(line)
+                parsed_command = parse(line)
+                self.delete_from(parsed_command)
             elif command.startswith("update"):
-                self.update(line)
+                parsed_command = parse(line)
+                self.update(parsed_command)
+            elif command.startswith("drop table"):
+                parsed_command = parse(line)
+                self.drop_Table(parsed_command)
 
             else:
                 parsed_command = parse(line)
                 if "select" in parsed_command:
-                    self.Run_Query(line)
+                    self.run_Query(line)
                 else:
                     print(f"Invalid command: {line}")
         except Exception as e:
@@ -163,7 +169,7 @@ class DatabaseCLI(cmd.Cmd):
         except Exception as e:
             print(f"An error occurred while trying to update data: {e}")
 
-    def Create_Database(self, database_name):
+    def create_Database(self, database_name):
         """Create a new database: CREATE DATABASE database_name;"""
         if database_name is None or database_name == "":
             print("Enter your CREATE DATABASE <database_name> command:")
@@ -187,7 +193,7 @@ class DatabaseCLI(cmd.Cmd):
             self.prompt = f"({database_name}-cli)> "
             print(f"Database '{database_name}' created successfully.")
 
-    def Use_Database(self, database_name):
+    def use_Database(self, database_name):
         """Switch to an existing database: USE database_name;"""
         if database_name is None or database_name == "":
             print("Enter your USE <database_name> command:")
@@ -210,7 +216,7 @@ class DatabaseCLI(cmd.Cmd):
             self.prompt = f"({database_name}-cli)> "
             print(f"Switched to database '{database_name}'.")
 
-    def Create_Table(self, arg):
+    def create_Table(self, arg):
         """Create a new table: CREATE TABLE ..."""
         if self.current_database is None:
             print("No database in use. Try creating one first")
@@ -228,7 +234,7 @@ class DatabaseCLI(cmd.Cmd):
         except Exception as e:
             print(f"An error occurred: {e}")
 
-    def Load_Data(self, arg):
+    def load_Data(self, arg):
         """Load data into a table from a CSV file: LOAD DATA <table_name> <csv_file_path>"""
         if self.current_database is None:
             print("No database in use. Try creating one first")
@@ -265,38 +271,29 @@ class DatabaseCLI(cmd.Cmd):
         except ValueError as e:
             print(f"An error occurred: {e}")
 
-    def Edit_Table(self, line):
-        """Edit an existing table: EDIT TABLE table_name;"""
-        print("Edit table not implemented yet.")
-
-    def Drop_Table(self, line):
-        """Delete an existing table: DELETE TABLE table_name;"""
-        if (
-            self.current_database.tables is None
-            or len(self.current_database.tables) == 0
-        ):
-            print("No tables in the database. Try creating one first")
+    def drop_Table(self, parsed_command):
+        if self.current_database is None:
+            print("No database in use.")
             return
-        if line is None or line == "":
-            print("Enter your DELETE TABLE command:")
-            line = input()
-        try:
-            # split line and extract table name
-            line = line.split()[2]
-            if line in self.current_database.tables:
-                print(f"Are you sure you want to delete table {line}? (y/n)")
-                answer = input()
-                if answer == "y":
-                    del self.current_database.tables[line]
-                    print(f"Table {line} deleted successfully.")
-                else:
-                    print(f"Table {line} not deleted.")
-            else:
-                print(f"Table {line} does not exist.")
-        except ValueError as e:
-            print(f"An error occurred while trying delete_table: {e}")
 
-    def Run_Query(self, line):
+        try:
+            table_name = parsed_command.get('drop')
+            if table_name not in self.current_database.tables:
+                print(f"Table {table_name} does not exist.")
+                return
+            print("Are you sure you want to drop table {table_name}? (y/n)")
+            answer = input()
+            if answer.lower() == "y":
+                # Call the delete method of the current database
+                self.current_database.drop_table(table_name)
+                print(f"Table {table_name} dropped successfully.")
+            else:
+                print(f"Table {table_name} not dropped.")
+
+        except Exception as e:
+            print(f"An error occurred while trying to drop table: {e}")
+
+    def run_Query(self, line):
         """Run a query on the database: QUERY your_sql_query;"""
         if self.current_database is None:
             print("No database in use. Try creating one first")

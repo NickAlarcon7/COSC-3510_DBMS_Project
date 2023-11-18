@@ -242,4 +242,8 @@ class Database:
     def update(self, list_of_assignments, statement):
         pass
 
+    def drop_table(self, table_name):
+        pass
+
+
 
