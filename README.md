@@ -1,17 +1,19 @@
-# COSC-3510_DBMS_Project
-
+# **NuSQL** - *A Simple Relational Database Management System*
+### COSC-3510_DBMS_Project
 **Authors: Nick Alarcon, Tony Chen**
+
+![](/Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/nuSQLlogo.png)
 
 ## Architecture:
 
 - A SQL parser: use mo-sql to identify CREATE TABLE statements. For column data type, we explicitly support INT/INTEGER, FLOAT, DECIMAL, BOOLEAN, VARCHAR. Everything else is treated as string. We cannot enforce the length of VARCHAR since we treat it as string.
 - An indexing structure: a BTrees.OOBTree with single attribute primary key as key and a tuple as value (row of data). We use the indexing structure to check for duplicates when inserting data. We mirror the IGNORE keyword behavior in MySQL by skipping duplicate rows.
-- A query optimizer: use sqlglot to optimize query **Need to work on this**
+- A query optimizer: use sqlglot to optimize query
 - An execution engine: wrap sqlglot executor with index support
 
 **Storage Architecture:**
 
-- tables - dictionary (
+- Tables - dictionary (
   key: table name - string, value: tuples - dictionary
   )
   example tables:
@@ -34,7 +36,7 @@
       ],
   }
   ```
-- schemas - dictionary (
+- Schemas - dictionary (
   key: table name - string, value: schema definition - dictionary
   )
   example schemas:
@@ -46,7 +48,7 @@
       },
   }
   ```
-- index-tree - dictionary (
+- Index-tree - dictionary (
   key: table name - string, value: index tree - B tree
   )
   example index-tree:
@@ -58,11 +60,11 @@
 
 ## Notes:
 
-- A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. We also check for single attribute primary key to insert into index strucuture.
-- When a table is created with single attribute primary key, indexing happens under the hood.
-  This app does not support CREATE INDEX statements
-- Since sqlglot does not support an alternate access path with index, this app detects when
-  using the indexing structure is more efficient and creates a temp table with the tuple(s) from the index. Then, instead of the original table, the temp table is used in the query. We currently detect equality condition in WHERE clause and support multiple equality conditions connected with OR, AND
+- > A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. We also check for single attribute primary key to insert into index strucuture.
+- > When a table is created with single attribute primary key, indexing happens under the hood.
+    This app does not support CREATE INDEX statements
+- > Since sqlglot does not support an alternate access path with index, this app detects when
+    using the indexing structure is more efficient and creates a temp table with the tuple(s) from the index. Then, instead of the original table, the temp table is used in the query. We currently detect equality condition in WHERE clause and support multiple equality conditions connected with OR, AND
 
 ## TODO:
 
@@ -74,8 +76,8 @@
 - [x] Sqlglot defaults to hash join. In the case of a join on two tables with both primary keys, we can create a temp tables by inserting one by one from the index, and then use the temp tables in the join. This is more efficient than hash join. The drawback is temporarily we would have three copies of the same data in memory. Another approach would be to add an ORDER BY
 - [x] Create simple structure in main.py to allow user to create tables, load data, and query.
 - [x] Find a better way to parse CREATE TABLE statements (currently using a crappy method)
-- [ ] Add function Edit_Table
-- [ ] Add function Delete_Table
+- [ ] Finish functions DROP, DELETE, UPDATE, INSERT in create_database.py
+- [ ] Quality test for bugs and edge cases 
 
 ## THINGS TO CONSIDER:
 

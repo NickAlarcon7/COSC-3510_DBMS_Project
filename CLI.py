@@ -5,66 +5,69 @@ from prompt_toolkit.lexers import PygmentsLexer
 from executor import execute_query
 from create_database import Database
 from prettytable import PrettyTable
-from prompt_toolkit import PromptSession
-from prompt_toolkit.styles import style_from_pygments_cls
+from prompt_toolkit import PromptSession, HTML
+from prompt_toolkit.styles import Style, style_from_pygments_cls
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import InMemoryHistory
 from pygments.lexers import SqlLexer
+from rich.console import Console
+from rich import print as rich_print
+from rich.markup import escape
+
+bright_green_style = "#00FF00"  # Bright green color
+deep_red_style = "#FF0000"     # Deep red color
 
 
 class DatabaseCLI(cmd.Cmd):
-    intro = "Welcome to the SQL database CLI. Type help or ? to list commands.\n"
+
     prompt = "(base-cli)$ "
 
     def __init__(self):
         super().__init__()
-        self.commands = [
-            "CREATE",
-            "DATABASE",
-            "USE",
-            "TABLE",
-            "LOAD",
-            "DATA",
-            "Exit",
-            "INSERT",
-            "INTO",
-            "SELECT",
-            "Print_Tables",
-            "Print_Schemas",
-            "List_Databases",
-            "SQL_command",
-            "clear",
-            "help",
-            "UPDATE",
-            "SET",
-            "DELETE",
-            "FROM",
-            "WHERE",
-            "DROP",
-        ]
-        self.completer = WordCompleter(
-            self.commands, ignore_case=True, match_middle=False
-        )
-        self.session = PromptSession(
-            completer=self.completer,
-            history=InMemoryHistory(),
-            lexer=PygmentsLexer(SqlLexer),
-            style=style_from_pygments_cls(CustomStyle),
-        )
-
+        self.console = Console()
+        self.commands = ["CREATE", "DATABASE", "USE", "TABLE", "LOAD", "DATA", "Exit", "INSERT", "INTO",
+                         "SELECT", "Print_Tables", "Print_Schemas", "List_Databases", "SQL_command", "clear", "help",
+                         "UPDATE", "SET", "DELETE", "FROM", "WHERE", "DROP", "GROUP", "BY"]
+        self.completer = WordCompleter(self.commands, ignore_case=True, match_middle=False)
+        self.session = PromptSession(completer=self.completer, history=InMemoryHistory(),
+                                     lexer=PygmentsLexer(SqlLexer), style=style_from_pygments_cls(CustomStyle))
+        self.prompt_style = Style.from_dict({
+            "prompt": "ansiblue"})
         self.databases = {}
         self.current_database = None  # Current database in use
 
+    def update_AutoComplete(self, table_nm):
+        self.commands.append(table_nm)
+
+        for column in self.current_database.table_schemas[table_nm]:
+            if column not in self.commands:
+                self.commands.append(column)
+
+    # Remember to update the autocomplete list when a INSERT INTO command is executed
+
     def cmdloop(self, intro=None):
         """Override the cmdloop method to use Prompt Toolkit for input."""
-        if intro is not None:
-            self.intro = intro
-        if self.intro:
-            print(self.intro)
+        intro = """
+        ╔─────────────────────────────────────────────────────────────╗
+        │ ██████   █████           █████████     ██████    █████      │
+        │  ██████   ███           ███     ███  ███    ███   ███       │
+        │  ███ ███  ███  ███  ███ ███         ███      ███  ███       │
+        │  ███  ███ ███   ██  ██   █████████  ███      ███  ███       │
+        │  ███   ██████   ██  ██          ███ ███   ██ ███  ███       │
+        │  ███    █████   ██  ██  ███     ███  ███   ████   ███      █│
+        │ █████    █████   ████    █████████     ██████ ██ ███████████│
+        ╚─────────────────────────────────────────────────────────────╝                               
+            """
+        self.console.print(f"[bold blue]{intro}[bold blue]\n")
+        self.console.print("[bold blue]Welcome to the NuSQL database CLI ![/bold blue]")
+        self.console.print("[yellow]Type help or ? to list commands.[/yellow]")
+        self.console.print("[yellow]Type SQL_command to enter a SQL command.[/yellow]")
+
         stop = None
         while not stop:
             try:
-                line = self.session.prompt(self.prompt)
+                prompt_text = HTML(f'<ansiblue>{self.prompt}</ansiblue>')
+                line = self.session.prompt(prompt_text)
                 stop = self.onecmd(line)
             except KeyboardInterrupt:
                 continue
@@ -77,21 +80,19 @@ class DatabaseCLI(cmd.Cmd):
     def do_SQL_command(self, line):
         """Use this command to enter a SQL command. Example: SQL_command CREATE DATABASE mydb;"""
         if line is None or line.strip() == "":
-            print("Enter your SQL command:")
+            self.console.print("Enter your SQL command:", style=deep_red_style)
             line = input()
 
         command = line.strip().lower()
 
         try:
-            # Handle 'CREATE DATABASE' command
+            # Handle SQL commands
             if command.startswith("create database"):
                 database_name = line.split()[2]
                 self.create_Database(database_name)
-            # Handle 'USE DATABASE' command
             elif command.startswith("use"):
                 database_name = line.split()[1]
                 self.use_Database(database_name)
-            # Handle 'CREATE TABLE' and 'LOAD DATA' commands
             elif command.startswith("create table"):
                 self.create_Table(line)
             elif command.startswith("load data"):
@@ -108,15 +109,16 @@ class DatabaseCLI(cmd.Cmd):
             elif command.startswith("drop table"):
                 parsed_command = parse(line)
                 self.drop_Table(parsed_command)
-
+            elif command.startswith("exit"):
+                self.do_Exit()
             else:
                 parsed_command = parse(line)
                 if "select" in parsed_command:
                     self.run_Query(line)
                 else:
-                    print(f"Invalid command: {line}")
+                    self.console.print(f"Invalid command: {line}", style=deep_red_style)
         except Exception as e:
-            print(f"An error occurred while parsing the command: {e}")
+            self.console.print(f"An error occurred while parsing the command: {e}", style=deep_red_style)
 
     def onecmd(self, line):
         if not self.current_database and line.split()[0] not in (
@@ -129,6 +131,7 @@ class DatabaseCLI(cmd.Cmd):
             "Print_Schemas",
             "clear",
             "exit",
+            "Clear"
         ):
             print(
                 f"Please use the 'SQL_command' command to create a database or use an existing one."
@@ -139,48 +142,52 @@ class DatabaseCLI(cmd.Cmd):
 
     def insert_into(self, parsed_command):
         if self.current_database is None:
-            print("No database selected.")
+            self.console.print("No database selected.", style=deep_red_style)
             return
 
         try:
-            table_name = parsed_command.get("insert")
-            values = parsed_command.get(
-                "query",
-            )
+            table_name = parsed_command.get('insert')
+            columns = parsed_command.get('columns', [])
+            values = parsed_command.get('values', )
+            # Assuming values is a list of tuples or a single tuple
 
             if not values:
-                print("No values provided for insertion")
+                self.console.print("No values provided for insertion", style=deep_red_style)
                 return
 
             # Call the insert method of the current database
-            self.current_database.insert(table_name, values)
-            print(f"Data inserted into table {table_name} successfully.")
+            self.current_database.insert(table_name, columns, values)
+            self.console.print(f"Data inserted into table {table_name} successfully.", style=bright_green_style)
+
         except Exception as e:
-            print(f"An error occurred while trying to insert data: {e}")
+            self.console.print(f"An error occurred while trying to insert data: {e}", style=deep_red_style)
 
     def delete_from(self, parsed_command):
         if self.current_database is None:
-            print("No database selected.")
+            self.console.print("No database selected.", style=deep_red_style)
             return
+
         try:
             table_name = parsed_command.get("delete")
             where_clause = parsed_command.get("where")
             # The where clause is a dictionary representing the condition
 
-            print("Are you sure you want to delete data from table {table_name}? (y/n)")
-            answer = input()
+            confirmation_msg = HTML(
+                f"Are you sure you want to delete data from table <ansired>{table_name}</ansired>? (y/n)\n")
+            answer = self.session.prompt(confirmation_msg)
+
             if answer.lower() == "y":
                 # Call the delete method of the current database
                 self.current_database.delete(table_name, where_clause)
-                print(f"Data deleted from table {table_name} successfully.")
+                self.console.print(f"Data deleted from table {table_name} successfully.", style=bright_green_style)
             else:
-                print(f"Data not deleted from table {table_name}.")
+                self.console.print(f"Data not deleted from table {table_name}.", style=deep_red_style)
         except Exception as e:
-            print(f"An error occurred while trying to delete data: {e}")
+            self.console.print(f"An error occurred while trying to delete data: {e}", style=deep_red_style)
 
     def update(self, parsed_command):
         if self.current_database is None:
-            print("No database selected.")
+            self.console.print("No database selected.", style=deep_red_style)
             return
 
         try:
@@ -192,258 +199,252 @@ class DatabaseCLI(cmd.Cmd):
 
             # Call the update method of the current database
             self.current_database.update(table_name, assignments, where_clause)
-            print(f"Data updated in table {table_name} successfully.")
+            self.console.print(f"Data updated in table {table_name} successfully.", style=bright_green_style)
         except Exception as e:
-            print(f"An error occurred while trying to update data: {e}")
+            self.console.print(f"An error occurred while trying to update data: {e}", style=deep_red_style)
 
     def create_Database(self, database_name):
         """Create a new database: CREATE DATABASE database_name;"""
+
         if database_name is None or database_name == "":
-            print("Enter your CREATE DATABASE <database_name> command:")
+            self.console.print("Enter your CREATE DATABASE <database_name> command:", style=deep_red_style)
             database_name = input()
         parts = database_name.split()
         if len(parts) == 3:
             part1, part2, database_name = parts
             if part1.lower() != "create" and part2.lower() != "database":
-                print(f"Invalid command: {part1}")
+                self.console.print(f"Invalid command: {part1}", style=deep_red_style)
                 return
         elif len(parts) == 1:
             database_name = parts[0]
         else:
-            print(f"Invalid command: {parts}")
+            self.console.print(f"Invalid command: {parts}", style=deep_red_style)
             return
         if database_name in self.databases:
-            print(f"A database with the name '{database_name}' already exists.")
+            self.console.print(f"A database with the name '{database_name}' already exists.", style=deep_red_style)
         else:
             self.databases[database_name] = Database()
             self.current_database = self.databases[database_name]
             self.prompt = f"({database_name}-cli)> "
-            print(f"Database '{database_name}' created successfully.")
+            self.console.print(f"Database '{database_name}' created successfully.", style=bright_green_style)
 
     def use_Database(self, database_name):
         """Switch to an existing database: USE database_name;"""
+
         if database_name is None or database_name == "":
-            print("Enter your USE <database_name> command:")
+            self.console.print("Enter your USE <database_name> command:", style=deep_red_style)
             database_name = input()
         parts = database_name.split()
         if len(parts) == 2:
             part1, database_name = parts
             if part1.lower() != "use":
-                print(f"Invalid command: {part1}")
+                self.console.print(f"Invalid command: {part1}", style=deep_red_style)
                 return
         elif len(parts) == 1:
             database_name = parts[0]
         else:
-            print(f"Invalid command: {parts}")
+            self.console.print(f"Invalid command: {parts}", style=deep_red_style)
             return
         if database_name not in self.databases:
-            print(f"No database found with the name '{database_name}'.")
+            self.console.print(f"No database found with the name '{database_name}'.", style=deep_red_style)
         else:
             self.current_database = self.databases[database_name]
             self.prompt = f"({database_name}-cli)> "
-            print(f"Switched to database '{database_name}'.")
+            self.console.print(f"Switched to database '{database_name}'.", style=bright_green_style)
 
     def create_Table(self, arg):
         """Create a new table: CREATE TABLE ..."""
         if self.current_database is None:
-            print("No database in use. Try creating one first")
+            self.console.print("No database in use. Try creating one first", style=deep_red_style)
             return
         if arg is None or arg == "":
-            print("Enter your CREATE TABLE command:")
+            self.console.print("Enter your CREATE TABLE command:", style=deep_red_style)
             arg = input()
         try:
             parsed_command = parse(arg)
             if "create table" in parsed_command:
-                self.current_database.create_table(parsed_command["create table"])
-                print(f"Table created successfully.")
+                schema_to_autocomplete = self.current_database.create_table(parsed_command["create table"])
+                self.update_AutoComplete(schema_to_autocomplete)
+                self.console.print("Table created successfully.", style=bright_green_style)
             else:
-                print(f"The command didn't specify a create table action.")
+                self.console.print("The command didn't specify a create table action.", style=deep_red_style)
         except Exception as e:
-            print(f"An error occurred: {e}")
+            self.console.print(f"An error occurred: {e}", style=deep_red_style)
 
     def load_Data(self, arg):
         """Load data into a table from a CSV file: LOAD DATA <table_name> <csv_file_path>"""
         if self.current_database is None:
-            print("No database in use. Try creating one first")
+            self.console.print("No database in use. Try creating one first", style=deep_red_style)
             return
-        if (
-            self.current_database.tables is None
-            or len(self.current_database.tables) == 0
-        ):
-            print("No tables in the database. Try creating one first")
+        if not self.current_database.tables:
+            self.console.print("No tables in the database. Try creating one first", style=deep_red_style)
             return
         if arg is None or arg == "":
-            print("Enter your LOAD DATA command:")
+            self.console.print("Enter your LOAD DATA command:", style=deep_red_style)
             arg = input()
         try:
             parts = arg.split()
             if len(parts) == 4:
                 part1, part2, table_name, csv_path = parts
                 if part1.lower() + part2.lower() != "loaddata":
-                    print(f"Invalid command: {arg}")
+                    self.console.print(f"Invalid command: {arg}", style=deep_red_style)
                     return
                 if table_name not in self.current_database.tables:
-                    print(f"Table {table_name} does not exist.")
+                    self.console.print(f"Table {table_name} does not exist.", style=deep_red_style)
                     return
                 self.current_database.populate_table_from_csv(table_name, csv_path)
-                print(f"Data loaded into table {table_name} from {csv_path}.")
+                self.console.print(f"Data loaded into table {table_name} from {csv_path}.", style=bright_green_style)
             else:
                 if len(parts) == 2:
                     table_name, csv_path = parts
                     if table_name not in self.current_database.tables:
-                        print(f"Table {table_name} does not exist.")
+                        self.console.print(f"Table {table_name} does not exist.", style=deep_red_style)
                         return
                     self.current_database.populate_table_from_csv(table_name, csv_path)
-                    print(f"Data loaded into table {table_name} from {csv_path}.")
+                    self.console.print(f"Data loaded into table {table_name} from {csv_path}.",
+                                       style=bright_green_style)
         except ValueError as e:
-            print(f"An error occurred: {e}")
+            self.console.print(f"An error occurred: {e}", style=deep_red_style)
 
     def drop_Table(self, parsed_command):
         if self.current_database is None:
-            print("No database in use.")
+            self.console.print("No database in use.", style=deep_red_style)
             return
 
         try:
             table_name = parsed_command.get("drop")
             if table_name not in self.current_database.tables:
-                print(f"Table {table_name} does not exist.")
+                self.console.print(f"Table {table_name} does not exist.", style=deep_red_style)
                 return
-            print("Are you sure you want to drop table {table_name}? (y/n)")
-            answer = input()
+
+            confirmation_msg = HTML(f"Are you sure you want to drop table <ansired>{table_name}</ansired>? (y/n)\n")
+            answer = self.session.prompt(confirmation_msg)
+
             if answer.lower() == "y":
-                # Call the delete method of the current database
+                # Call the drop_table method of the current database
                 self.current_database.drop_table(table_name)
-                print(f"Table {table_name} dropped successfully.")
+                self.console.print(f"Table {table_name} dropped successfully.", style=bright_green_style)
             else:
-                print(f"Table {table_name} not dropped.")
+                self.console.print(f"Table {table_name} not dropped.", style=deep_red_style)
 
         except Exception as e:
-            print(f"An error occurred while trying to drop table: {e}")
+            self.console.print(f"An error occurred while trying to drop table: {e}", style=deep_red_style)
 
     def run_Query(self, line):
         """Run a query on the database: QUERY your_sql_query;"""
         if self.current_database is None:
-            print("No database in use. Try creating one first")
+            self.console.print("No database in use. Try creating one first", style=deep_red_style)
             return
-        if (
-            self.current_database.tables is None
-            or len(self.current_database.tables) == 0
-        ):
-            print("No tables in the database. Try creating one first")
+        if not self.current_database.tables:
+            self.console.print("No tables in the database. Try creating one first", style=deep_red_style)
             return
         if line is None or line == "":
-            print("Enter your QUERY command:")
+            self.console.print("Enter your QUERY command:", style=deep_red_style)
             line = input()
         try:
             results = execute_query(f"""{line}""", self.current_database)
-            print("\nQuery Results:")
             if results:
-                # Create a PrettyTable instance
                 table = PrettyTable()
-
-                # Set the column names using the 'columns' attribute
                 table.field_names = results.columns
-
-                # Set horizontal lines between rows
                 table.hrules = 1
 
-                # Add rows to the table using the 'rows' attribute
                 for row in results.rows:
                     table.add_row(row)
 
-                print(table)
-                print()
+                # ANSI Blue color start code
+                blue_start = "\033[94m"
+                # ANSI color reset code
+                reset = "\033[0m"
 
+                # Print the table with blue color
+                print(blue_start + str(table) + reset)
+                self.console.print("\nQuery executed successfully.", style=bright_green_style)
             else:
-                print("No data returned.")
+                self.console.print("No data returned.", style=deep_red_style)
 
         except Exception as e:
-            print(f"An error occurred while trying to run query: {e}")
-            return
+            self.console.print(f"An error occurred while trying to run query: {e}", style=deep_red_style)
 
     def do_Print_Tables(self, line):
         """Print all tables in the database or a specific table;"""
         if self.current_database is None:
-            print("No database in use. Try creating one first")
+            self.console.print("No database in use. Try creating one first", style=deep_red_style)
             return
         try:
-            if (
-                self.current_database.tables is None
-                or len(self.current_database.tables) == 0
-            ):
-                print("No tables in the database.")
+            if not self.current_database.tables:
+                self.console.print("No tables in the database.", style=deep_red_style)
                 return
             if line is None or line == "":
                 for table in self.current_database.tables:
-                    if (
-                        self.current_database.tables[table] is None
-                        or len(self.current_database.tables[table]) == 0
-                    ):
-                        print(f"Table for {table} is empty.")
-                        continue
+                    if not self.current_database.tables[table]:
+                        self.console.print(f"Table for {escape(table)} is empty.", style=deep_red_style)
                     else:
-                        print(f"Table for {table}:")
+                        rich_print(f"[blue]Table for {escape(table)}:[/blue]")
                         print(self.current_database.tables[table])
                         self.current_database.print_table(table)
                         print("\n" * 2)
             else:
-                print(f"Table for {line}: \n")
+                rich_print(f"[blue]Table for {escape(line)}:[/blue] \n")
                 print(self.current_database.tables[line])
                 self.current_database.print_table(line)
         except ValueError as e:
-            print(f"An error occurred while trying to print tables: {e}")
+            self.console.print(f"An error occurred while trying to print tables: {e}", style=deep_red_style)
 
     def do_Print_Schemas(self, line):
         """Print all schemas in the database or a specific schema;"""
         if self.current_database is None:
-            print("No database in use. Try creating one first")
+            self.console.print("No database in use. Try creating one first", style=deep_red_style)
             return
         try:
-            if (
-                self.current_database.table_schemas is None
-                or len(self.current_database.table_schemas) == 0
-            ):
-                print("No schemas in the database.")
+            if not self.current_database.table_schemas:
+                self.console.print("No schemas in the database.", style=deep_red_style)
                 return
             if line is None or line == "":
                 for schema in self.current_database.table_schemas:
-                    print(f"Schema for {schema}:")
+                    rich_print(f"[blue]Schema for {escape(schema)}:[/blue]")
                     print(self.current_database.table_schemas[schema])
                     print("\n" * 2)
             else:
-                print(f"Schema for {line}: \n")
+                rich_print(f"[blue]Schema for {escape(line)}:[/blue] \n")
                 print(self.current_database.table_schemas[line])
         except ValueError as e:
-            print(f"An error occurred while trying to print schemas: {e}")
+            self.console.print(f"An error occurred while trying to print schemas: {e}", style=deep_red_style)
 
     def do_List_Databases(self, line):
         """List all databases"""
         if not self.databases_exist():
-            print("No databases have been created.")
+            self.console.print("No databases have been created.", style=deep_red_style)
         else:
-            print("Databases:")
+            self.console.print("[blue]Databases:[/blue]")
             for db_name in self.databases:
-                print(f"- {db_name}")
+                self.console.print(f"- {escape(db_name)}")
 
     def do_Exit(self, arg):
         """Exit the CLI"""
+        exit_msg_style = "ansired"  # ANSI red for the prompt
+
+        if arg:
+            return True
+
         if self.current_database:
-            print("Are you sure you want to exit current database session ? (y/n)")
-            answer = input()
+            exit_msg = HTML(
+                f'<{exit_msg_style}>Are you sure you want to exit the current database session ? (y/n)</{exit_msg_style}>\n')
+            answer = self.session.prompt(exit_msg)
             if answer.lower() == "y":
                 self.current_database = None
                 self.prompt = "(base-cli)$ "
-                print("Exiting the current database session.")
+                self.console.print("Exiting the current database session.", style=deep_red_style)
             else:
-                print("Data base session exit aborted.")
+                self.console.print("Database session exit aborted.", style=deep_red_style)
         else:
-            print("Are you sure you want to exit the SQL database CLI? (y/n)")
-            answer = input()
+            exit_msg = HTML(
+                f'<{exit_msg_style}>Are you sure you want to exit the SQL database CLI? (y/n)</{exit_msg_style}>\n')
+            answer = self.session.prompt(exit_msg)
             if answer.lower() == "y":
-                print("Exiting the SQL database CLI.")
+                self.console.print("Exiting the SQL database CLI.", style=deep_red_style)
                 return True
             else:
-                print("Exit aborted.")
+                self.console.print("Exit aborted.", style=deep_red_style)
 
     def do_help(self, arg):
         # Filter out commands when no database is created or in use
@@ -480,12 +481,13 @@ class DatabaseCLI(cmd.Cmd):
             )
 
     def default(self, line):
-        if line.lower() == "clear":
+        if line.lower() == "clear" or line.lower() == "clear ":
             print("\n" * 100)
+            return
         if line.lower() == "exit":
-            self.do_Exit(None)
+            self.do_Exit(True)
         else:
-            print(f"Unknown command: {line}")
+            self.console.print(f"Unknown command: {line}", style=deep_red_style)
 
     def emptyline(self):
         pass  # Do nothing on an empty line input

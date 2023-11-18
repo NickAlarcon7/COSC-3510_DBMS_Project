@@ -10,7 +10,7 @@ class Database:
         self.indexing_structures = {}
         self.table_schemas = {}
 
-    def create_table(self, table_definition):
+    def create_table(self, table_definition) -> str:
         table_name = table_definition["name"]
         if table_name in self.tables:
             raise ValueError(f"Table {table_name} already exists!")
@@ -21,6 +21,8 @@ class Database:
         schema = self._create_schema(table_definition)
         print(f"Schema for {table_name}: {schema}")
         self.table_schemas[table_name] = schema
+
+        return table_name
 
     def _create_schema(self, table_definition):
         schema = {}
@@ -211,7 +213,6 @@ class Database:
             print(f"Table {table_name} does not exist!")
             return
 
-        # Create a PrettyTable instance
         table = PrettyTable()
 
         # Set the column names as the fields
@@ -223,13 +224,13 @@ class Database:
         # Add rows to the table
         for row in self.tables[table_name]:
             table.add_row([row[column] for column in table.field_names])
-            # Add a separator after each row
-            # table.add_row(["-" * len(str(row[column])) for column in table.field_names])
 
-        # Print the table with a border and header line
-        table.header = True
-        table.border = True
-        print(table)
+        # ANSI Blue color start and reset codes
+        blue_start = "\033[94m"
+        reset = "\033[0m"
+
+        # Print the table in blue color
+        print(blue_start + str(table) + reset)
 
     def insert(self, table_name, values):
         pass
