@@ -196,7 +196,7 @@ class Database:
 
     def _convert_type(self, value, data_type, nullable, primary_key):
         # Handle null values
-        if value == "" or value.isspace():
+        if value == "" or (isinstance(value, str) and value.isspace()):
             # if NOT NULL is not set and column is not a primary key, then return None
             if nullable and not primary_key:
                 return None
@@ -256,9 +256,62 @@ class Database:
         print(blue_start + str(table) + reset)
 
     def insert(self, table_name, values):
-        pass
+        if "select" not in values:
+            raise ValueError(
+                f"Invalid values: {values}. Currently supported format: INSERT INTO EMPLOYEE VALUES (1, 'John', 150.00, 5)"
+            )
+        values = values["select"]
+
+        if table_name not in self.tables:
+            raise ValueError(f"Table {table_name} does not exist!")
+        table = self.tables[table_name]
+        new_row = {}
+        column_names = list(self.table_schemas[table_name].keys())
+
+        # if number of values does not match number of columns, then raise error
+        if len(values) != len(column_names):
+            raise ValueError(
+                f"Number of values does not match number of columns: {values}"
+            )
+
+        # iterate through values and match it with the schema to create a new row
+        for index, value in enumerate(values):
+            value = value["value"]
+            # extract column name at index from schema
+            column_name = column_names[index]
+
+            column_schema = self.table_schemas[table_name][column_name]
+            # before adding value to new_row, call _convert_type to convert value to the correct type
+            new_row[column_name] = self._convert_type(
+                value,
+                column_schema["type"],
+                column_schema.get("nullable", True),
+                column_schema.get("primary_key", False),
+            )
+
+            # find the primary key value
+            if "primary_key" in column_schema:
+                primary_key_value = new_row[column_name]
+
+        # if new_row already exists in the table, then raise error
+        if new_row in table:
+            raise ValueError(f"Duplicate row: {new_row}")
+
+        # if indexing structure exists, then add the row to the indexing structure
+        if table_name in self.indexing_structures:
+            indexing_structure = self.indexing_structures[table_name]
+            # ignore the new row with a duplicate primary key
+            if primary_key_value in indexing_structure:
+                raise ValueError(f"Duplicate primary key: {primary_key_value}")
+            # Add new_row to the indexing structure
+            indexing_structure.insert(primary_key_value, new_row)
+
+        # add new_row to the table
+        table.append(new_row)
 
     def delete(self, table_name, where_clause):
+        if table_name not in self.tables:
+            raise ValueError(f"Table {table_name} does not exist!")
         table = self.tables[table_name]
 
         # if table is empty, then return early
@@ -271,42 +324,105 @@ class Database:
                 self.indexing_structures[table_name].clear()
             return "All rows successfully deleted!"
 
-        # Only support deleting with equality condition for now
-        if "eq" in where_clause:
-            equality_condition = where_clause["eq"]
-            # extract column name from equality condition array
-            column_name = equality_condition[0]
-            # flatten and extract matching value from equality condition array
-            if isinstance(equality_condition[1], dict):
-                equality_condition[1] = equality_condition[1]["literal"]
-            matching_value = equality_condition[1]
-
-            # find row in tables[table_name] that matches the column name and matching value
-            for row in table:
-                if row[column_name] == matching_value:
-                    # if indexing structure exists, then remove the row from the indexing structure
-                    if table_name in self.indexing_structures:
-                        # extract primary key column name and value
-                        primary_key_column = next(
-                            column
-                            for column in row
-                            if "primary_key" in self.table_schemas[table_name][column]
-                        )
-                        primary_key_value = row[primary_key_column]
-
-                        self.indexing_structures[table_name].pop(primary_key_value)
-
-                    # remove the row from the indexing structure
-                    table.remove(row)
-
-            return f"Row with {column_name} = {matching_value} successfully deleted!"
-        else:
+        if "eq" not in where_clause:
             raise ValueError(
-                f"Invalid where clause: {where_clause}. Current supported format: DELETE FROM EMPLOYEE WHERE dept = 5"
+                f"Invalid where clause: {where_clause}. Currently supported format: DELETE FROM EMPLOYEE WHERE dept = 5"
             )
 
+        column_name, matching_value = self.parse_where(where_clause)
+
+        # find row in tables[table_name] that matches the column name and matching value
+        for row in table:
+            if row[column_name] == matching_value:
+                # if indexing structure exists, then remove the row from the indexing structure
+                if table_name in self.indexing_structures:
+                    # extract primary key column name and value
+                    primary_key_column = next(
+                        column
+                        for column in row
+                        if "primary_key" in self.table_schemas[table_name][column]
+                    )
+                    primary_key_value = row[primary_key_column]
+
+                    self.indexing_structures[table_name].pop(primary_key_value)
+
+                # remove the row from the indexing structure
+                table.remove(row)
+
+        return f"Row with {column_name} = {matching_value} successfully deleted!"
+
     def update(self, table_name, assignments, where_clause):
-        pass
+        if table_name not in self.tables:
+            raise ValueError(f"Table {table_name} does not exist!")
+        table = self.tables[table_name]
+
+        # if table is empty, then return early
+        if not table:
+            return "Table is empty!"
+
+        # Extract column and matching value using items()
+        for key, value in assignments.items():
+            set_column = key
+            # flatten and extract matching value
+            if isinstance(value, dict):
+                # if value does not contain "literal" key, then raise error
+                if "literal" not in value:
+                    raise ValueError(
+                        f"Invalid assignments: {assignments}. Currently supported format: UPDATE EMPLOYEE SET salary = 150.00 WHERE name = 'John'"
+                    )
+                value = value["literal"]
+            set_value = value
+
+        # if where_clause is None, then update all rows in the table
+        if where_clause is None:
+            for row in table:
+                row[set_column] = set_value
+            return f"All rows successfully updated!"
+
+        if "eq" not in where_clause:
+            raise ValueError(
+                f"Invalid where clause: {where_clause}. Currently supported format: UPDATE EMPLOYEE SET salary = 150.00 WHERE name = 'John'"
+            )
+
+        column_name, matching_value = self.parse_where(where_clause)
+
+        # find row in tables[table_name] that matches the column name and matching value
+        for row in table:
+            if row[column_name] == matching_value:
+                row[set_column] = set_value
+
+                # if indexing structure exists, then update the row in the indexing structure
+                if table_name in self.indexing_structures:
+                    # extract primary key column name and value
+                    primary_key_column = next(
+                        column
+                        for column in row
+                        if "primary_key" in self.table_schemas[table_name][column]
+                    )
+                    primary_key_value = row[primary_key_column]
+
+                    self.indexing_structures[table_name][primary_key_value][
+                        set_column
+                    ] = set_value
+
+        return f"Successfully updated row with {set_column} = {set_value}"
+
+    def parse_where(self, where_clause):
+        # Only support equality condition for now
+        equality_condition = where_clause["eq"]
+        # extract column name from equality condition array
+        column_name = equality_condition[0]
+        # flatten and extract matching value from equality condition array
+        if isinstance(equality_condition[1], dict):
+            # if value does not contain "literal" key, then raise error
+            if "literal" not in equality_condition[1]:
+                raise ValueError(
+                    f"Invalid where clause: {where_clause}. Currently supported type: string literal and number"
+                )
+            equality_condition[1] = equality_condition[1]["literal"]
+        matching_value = equality_condition[1]
+
+        return column_name, matching_value
 
     def drop_table(self, table_name):
         del self.tables[table_name]

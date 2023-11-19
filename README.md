@@ -63,7 +63,9 @@
 ## SQL Commands:
 
 - > **DROP TABLE table_name** - drop table from tables, table_schemas, and indexing_structures (if exists)
-- > **DELETE FROM taable_name WHERE column_name = value** - delete row from table with matching column_name and value. If where clause is empty, delete all rows from table
+- > **INSERT INTO table_name VALUES (value1, value2, value3)** - insert row with values into table. Since column list is not specified, values must be listed in the order of their initial definition. Abort if duplicate row or duplicate primary key is found. Foreign key and reference are not enforced
+- > **UPDATE table_name SET set_column = set_value WHERE match_column = match_value** - update row with match_value at match_column with set_value at set_column. If where clause is empty, update all rows in table. match_value and set_value must be either string or number. Foreign key and reference are not enforced
+- > **DELETE FROM taable_name WHERE column_name = value** - delete row from table with matching column_name and value. Delete entry from indexing strucuture if exists. If where clause is empty, delete all rows from table. If where clause does not match equal condition, raise error. Foreign key and reference are not enforced
 
 ## Notes:
 

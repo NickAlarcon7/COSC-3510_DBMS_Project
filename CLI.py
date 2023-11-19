@@ -177,12 +177,11 @@ class DatabaseCLI(cmd.Cmd):
 
         try:
             table_name = parsed_command.get("insert")
-            columns = parsed_command.get("columns", [])
             values = parsed_command.get(
-                "values",
+                "query",
             )
-            # Assuming values is a list of tuples or a single tuple
 
+            # Assuming values is a list of tuples or a single tuple
             if not values:
                 self.console.print(
                     "No values provided for insertion", style=deep_red_style
@@ -190,7 +189,7 @@ class DatabaseCLI(cmd.Cmd):
                 return
 
             # Call the insert method of the current database
-            self.current_database.insert(table_name, columns, values)
+            self.current_database.insert(table_name, values)
             self.console.print(
                 f"Data inserted into table {table_name} successfully.",
                 style=bright_green_style,
@@ -247,9 +246,11 @@ class DatabaseCLI(cmd.Cmd):
             # The where_clause is a dictionary representing the condition
 
             # Call the update method of the current database
-            self.current_database.update(table_name, assignments, where_clause)
+            update_status = self.current_database.update(
+                table_name, assignments, where_clause
+            )
             self.console.print(
-                f"Data updated in table {table_name} successfully.",
+                f"{update_status}",
                 style=bright_green_style,
             )
         except Exception as e:

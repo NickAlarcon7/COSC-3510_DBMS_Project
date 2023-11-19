@@ -308,8 +308,12 @@ def fetch_index(
     column_name = equality_condition[0]
     # extract matching value from equality condition array
     if isinstance(equality_condition[1], dict):
+        # if equality condition does not contain "literal" key, then return empty tables
+        if "literal" not in equality_condition[1]:
+            return tables
         equality_condition[1] = equality_condition[1]["literal"]
     matching_value = equality_condition[1]
+
     # find out if table has an index, column is a primary key, and matching value is in index
     if "primary_key" in selected_schema[
         column_name
