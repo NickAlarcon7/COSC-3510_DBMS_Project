@@ -4,7 +4,7 @@
 
 **Authors: Nick Alarcon, Tony Chen**
 
-![](nuSQLlogo.png)
+![](Utility_files/nuSQLlogo.png)
 
 ## Architecture:
 
