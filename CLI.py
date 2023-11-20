@@ -63,12 +63,17 @@ class DatabaseCLI(cmd.Cmd):
         self.databases = {}
         self.current_database = None  # Current database in use
 
-    def update_AutoComplete(self, table_nm):
-        self.commands.append(table_nm)
-
-        for column in self.current_database.table_schemas[table_nm]:
-            if column not in self.commands:
-                self.commands.append(column)
+    def update_AutoComplete(self, table_nm, add_or_remove):
+        if add_or_remove == "add":
+            self.commands.append(table_nm)
+            for column in self.current_database.table_schemas[table_nm]:
+                if column not in self.commands:
+                    self.commands.append(column)
+        elif add_or_remove == "remove":
+            self.commands.remove(table_nm)
+            for column in self.current_database.table_schemas[table_nm]:
+                if column in self.commands:
+                    self.commands.remove(column)
 
     # Remember to update the autocomplete list when a INSERT INTO command is executed
 
@@ -340,7 +345,7 @@ class DatabaseCLI(cmd.Cmd):
                 schema_to_autocomplete = self.current_database.create_table(
                     parsed_command["create table"]
                 )
-                self.update_AutoComplete(schema_to_autocomplete)
+                self.update_AutoComplete(schema_to_autocomplete, "add")
                 self.console.print(
                     "Table created successfully.", style=bright_green_style
                 )
@@ -421,6 +426,8 @@ class DatabaseCLI(cmd.Cmd):
 
             if answer.lower() == "y":
                 # Call the drop_table method of the current database
+
+                self.update_AutoComplete(table_name, "remove")
                 self.current_database.drop_table(table_name)
                 self.console.print(
                     f"Table {table_name} dropped successfully.",
