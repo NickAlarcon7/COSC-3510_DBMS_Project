@@ -62,22 +62,18 @@
 
 ## SQL Commands:
 
-- > **DROP TABLE table_name** - drop table from tables, table_schemas, and indexing_structures (if exists)
-- > **INSERT INTO table_name VALUES (value1, value2, value3)** - insert row with values into table. Since column list is not specified, values must be listed in the order of their initial definition. Abort if duplicate row or duplicate primary key is found. Foreign key and reference are not enforced
+- > **CREATE TABLE table_name (column_name data_type constraint, column_name data_type constraint, column_name data_type constraint, PRIMARY KEY (column_name))** - Create a entry in the tables dictionary with the table name as the key and an empty array as the value. Create a entry in the table_schemas dictionary with the table name as the key and the schema definition dictionary as the value. Raise error if column has no data type or no primary key is specified. Foreign key and reference are parsed and stored in the schema dictionary but not enforced. When creating with single attribute primary key, indexing happens under the hood. This app does not support CREATE INDEX statements.
+- > **LOAD DATA table_name csv_file_path** - Check the schema table to convert the data type to match the schema. Input csv file must contain a header of column names. If input value is empty string or whitespace, and column is not constrained by NOT NULL or primary key, set the value to NONE and process as usual. However, skip rows where it contains null when it should not. We also check for single attribute primary key to insert into index strucuture.
+- > **DROP TABLE table_name** - Drop table from tables, table_schemas, and indexing_structures (if exists)
+- > **INSERT INTO table_name VALUES (value1, value2, value3)** - Insert row with values into table. Since column list is not specified, values must be listed in the order of their initial definition. Abort if duplicate row or duplicate primary key is found. Foreign key and reference are not enforced
 - > **UPDATE table_name SET set_column = set_value WHERE match_column = match_value** - update row with match_value at match_column with set_value at set_column. If where clause is empty, update all rows in table. match_value and set_value must be either string or number. Foreign key and reference are not enforced
-- > **DELETE FROM taable_name WHERE column_name = value** - delete row from table with matching column_name and value. Delete entry from indexing strucuture if exists. If where clause is empty, delete all rows from table. If where clause does not match equal condition, raise error. Foreign key and reference are not enforced
-
-## Notes:
-
-- > A separate schemas table is used to store the schema of each table. We store data type, nullable, primary key, foreign key, and foreign reference in the schema table. When inserting data, we check the schema table to convert the data type to match the schema. Input csv file must contain a header of column names. If input value is empty string or whitespace, and column is not constrained by NOT NULL or primary key, set the value to NONE and process as usual. However, skip rows where it contains null when it should not. We also check for single attribute primary key to insert into index strucuture.
-- > When a table is created with single attribute primary key, indexing happens under the hood.
-  > This app does not support CREATE INDEX statements
-- > Since sqlglot does not support an alternate access path with index, this app detects when
-  > using the indexing structure is more efficient and creates a temp table with the tuple(s) from the index. Then, instead of the original table, the temp table is used in the query. We currently detect equality condition in WHERE clause and support multiple equality conditions connected with OR, AND. If one side of OR is indexed and the other side is not, the temp table is the original table because we cannot create a temp table with only the indexed tuple.
+- > **DELETE FROM taable_name WHERE column_name = value** - Delete row from table with matching column_name and value. Delete entry from indexing strucuture if exists. If where clause is empty, delete all rows from table. If where clause does not match equal condition, raise error. Foreign key and reference are not enforced
+- > **SELECT column_name FROM table_name WHERE column_name = value** -
+  > INDEX SUPPORT: If selecting with a where clause from a single table that has a single attribute primary key, create a temp table with the tuple(s) from the indexing structure and feed it to query engine. Detect equality condition in WHERE clause and support multiple equality conditions connected with OR, AND. If one side of OR is indexed and the other side is not, the temp table is the original table because we cannot create a temp table with only the indexed tuple.
+  > JOIN OPTIMIZER: If ordering by one of the joining condition, then use merge join. If the size of one table is less than 100, and the size of the other table is less than 10 times the size of the smaller table, then use nested loop join. Otherwise, defaults to hash join.
 
 ## TODO:
 
-- [x] When CREATE TABLE is called, create a table in the tables dictionary with the table name as the key and an empty dictionary as the value; create a schema in the schemas dictionary with the table name as the key and the schema definition dictionary as the value
 - [x] How to parse CREATE TABLE? - Use mo.sql to figure out the leading sql command (i.e. CREATE TABLE, SELECT, etc.)
 - [x] Use mo-sql-parsing to parse the schema definition and extract type and primary key/foreign key
 - [x] Populate table with entities using LOAD and check for duplicates

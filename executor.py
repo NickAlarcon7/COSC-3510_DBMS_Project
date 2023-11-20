@@ -6,15 +6,14 @@ import typing as t
 
 from mo_sql_parsing import parse
 
-from sqlglot import maybe_parse
 from sqlglot.errors import ExecuteError
-from sqlglot.executor.python import PythonExecutor
 from sqlglot.executor.table import Table, ensure_tables
 from sqlglot.helper import dict_depth
 from sqlglot.optimizer import optimize
 from sqlglot.planner import Plan
 from sqlglot.schema import ensure_schema, flatten_schema, nested_get, nested_set
 
+from custom_python_executor import MergeJoinPythonExecutor, DefaultPythonExecutor
 
 logger = logging.getLogger("sqlglot")
 
@@ -30,105 +29,63 @@ PYTHON_TYPE_TO_SQLGLOT = {
 }
 
 
-class OptimizedPythonExecutor(PythonExecutor):
-    def join(self, step, context):
-        source = step.name
-
-        source_table = context.tables[source]
-        source_context = self.context({source: source_table})
-        column_ranges = {source: range(0, len(source_table.columns))}
-
-        for name, join in step.joins.items():
-            table = context.tables[name]
-            start = max(r.stop for r in column_ranges.values())
-            column_ranges[name] = range(start, len(table.columns) + start)
-            join_context = self.context({name: table})
-
-            if join.get("source_key"):
-                table = self.hash_join(join, source_context, join_context)
-            else:
-                table = self.nested_loop_join(join, source_context, join_context)
-
-            source_context = self.context(
-                {
-                    name: Table(table.columns, table.rows, column_range)
-                    for name, column_range in column_ranges.items()
-                }
-            )
-            condition = self.generate(join["condition"])
-            if condition:
-                source_context.filter(condition)
-
-        if not step.condition and not step.projections:
-            return source_context
-
-        sink = self._project_and_filter(
-            source_context,
-            step,
-            (reader for reader, _ in iter(source_context)),
-        )
-
-        if step.projections:
-            return self.context({step.name: sink})
-        else:
-            return self.context(
-                {
-                    name: Table(table.columns, sink.rows, table.column_range)
-                    for name, table in source_context.tables.items()
-                }
-            )
-
-    def merge_join(self, _join, source_context, join_context):
-        table = Table(source_context.columns + join_context.columns)
-
-        source_key = self.generate_tuple(_join["source_key"])
-        join_key = self.generate_tuple(_join["join_key"])
-
-        source_context.sort(source_key)
-        join_context.sort(join_key)
-
-        source_iterator = iter(source_context)
-        join_iterator = iter(join_context)
-
-        source_reader, source_ctx = next(source_iterator, (None, None))
-        join_reader, join_ctx = next(join_iterator, (None, None))
-
-        while source_reader and join_reader:
-            source_key_value = source_ctx.eval_tuple(source_key)
-            join_key_value = join_ctx.eval_tuple(join_key)
-
-            if source_key_value == join_key_value:
-                # Create lists to store matching rows from both contexts
-                source_rows = []
-                join_rows = []
-
-                while (
-                    source_reader
-                    and source_ctx.eval_tuple(source_key) == source_key_value
-                ):
-                    source_rows.append(source_reader.row)
-                    source_reader, source_ctx = next(source_iterator, (None, None))
-
-                while join_reader and join_ctx.eval_tuple(join_key) == join_key_value:
-                    join_rows.append(join_reader.row)
-                    join_reader, join_ctx = next(join_iterator, (None, None))
-
-                # Create a Cartesian product of matching rows
-                for source_row in source_rows:
-                    for join_row in join_rows:
-                        table.append(source_row + join_row)
-            elif source_key_value < join_key_value:
-                source_reader, source_ctx = next(source_iterator, (None, None))
-            else:
-                join_reader, join_ctx = next(join_iterator, (None, None))
-
-        return table
-
-
 def execute_query(query, database):
-    tables = database.tables
-
     parsed_query = parse(query)
+
+    # identify available indexes
+    tables = identify_available_indexes(parsed_query, database)
+
+    # if query joins two tables and orders by one of the joining condiiton, then use merge join
+    join_algorithm = identify_join_algorithm(parsed_query)
+
+    return sqlglot_execute(query, tables=tables, join_algorithm=join_algorithm)
+
+
+def identify_join_algorithm(parsed_query):
+    join_algorithm = "default"
+
+    if "orderby" not in parsed_query or not isinstance(parsed_query.get("from"), list):
+        return join_algorithm
+
+    from_tables = parsed_query["from"]
+    orderby_clause = parsed_query["orderby"]["value"]
+
+    # traverse from_tables to find dictionary entries.
+    for table in from_tables:
+        # In a dictionary entry, find the dictionary value at the "on" key
+        if not isinstance(table, dict) or "on" not in table:
+            continue
+        on_clause = table["on"]
+
+        # don't use merge join if join type is left or right
+        if "left join" in table or "right join" in table:
+            return join_algorithm
+
+        if not isinstance(on_clause, dict) or "eq" not in on_clause:
+            continue
+        eq_clause = on_clause["eq"]
+
+        if orderby_clause in eq_clause:
+            join_algorithm = "merge"
+            return join_algorithm
+
+    # inside where clause, find the array value at the "eq" key.
+    if "where" in parsed_query:
+        where_clause = parsed_query["where"]
+        if not isinstance(where_clause, dict) or "eq" not in where_clause:
+            return join_algorithm
+        eq_clause = where_clause["eq"]
+
+        # If orderby_clause is in the array, then set join_algorithm to "merge"
+        if orderby_clause in eq_clause:
+            join_algorithm = "merge"
+            return join_algorithm
+
+    return join_algorithm
+
+
+def identify_available_indexes(parsed_query, database):
+    tables = database.tables
 
     # extract table name from query
     from_table = parsed_query["from"]
@@ -187,8 +144,7 @@ def execute_query(query, database):
     # if temp_table exists, then set tables to temp_table
     if temp_table:
         tables = temp_table
-
-    return sqlglot_execute(query, tables=tables)
+    return tables
 
 
 def sqlglot_execute(
@@ -196,6 +152,7 @@ def sqlglot_execute(
     schema: t.Optional[t.Dict | Schema] = None,
     read: DialectType = None,
     tables: t.Optional[t.Dict] = None,
+    join_algorithm: str = "default",
 ) -> Table:
     """
     Run a sql query against data.
@@ -252,7 +209,10 @@ def sqlglot_execute(
     logger.debug("Logical Plan: %s", plan)
 
     now = time.time()
-    result = OptimizedPythonExecutor(tables=tables_).execute(plan)
+    if join_algorithm is "merge":
+        result = MergeJoinPythonExecutor(tables=tables_).execute(plan)
+    else:
+        result = DefaultPythonExecutor(tables=tables_).execute(plan)
 
     print()
     print(f"Query finished in: {time.time() - now:.5f}s")

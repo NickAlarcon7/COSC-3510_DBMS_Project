@@ -79,6 +79,33 @@
 }
 
 {
+    "select": [
+        {"value": "orders.order_id"},
+        {"value": "orders.order_date"},
+        {"value": "customers.customer_name"},
+    ],
+    "from": [
+        "orders",
+        {
+            "join": "customers",
+            "on": {"eq": ["orders.customer_id", "customers.customer_id"]},
+        },
+    ],
+    "orderby": {"value": "orders.order_date", "sort": "desc"},
+}
+
+{
+    "select": "*",
+    "from": [
+        "table1",
+        {
+            "left join": "table2",
+            "on": {"eq": ["table1.column_name", "table2.column_name"]},
+        },
+    ],
+}
+
+{
     "select": [{"value": "employee_id"}, {"value": "employee_name"}],
     "from": "employees",
     "where": {
