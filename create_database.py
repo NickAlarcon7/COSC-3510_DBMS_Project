@@ -332,7 +332,9 @@ class Database:
         column_name, matching_value = self.parse_where(where_clause)
 
         # find row in tables[table_name] that matches the column name and matching value
-        for row in table:
+        i = 0
+        while i < len(table):
+            row = table[i]
             if row[column_name] == matching_value:
                 # if indexing structure exists, then remove the row from the indexing structure
                 if table_name in self.indexing_structures:
@@ -346,8 +348,10 @@ class Database:
 
                     self.indexing_structures[table_name].pop(primary_key_value)
 
-                # remove the row from the indexing structure
-                table.remove(row)
+                # remove the row from the collection
+                table.pop(i)
+            else:
+                i += 1
 
         return f"Row with {column_name} = {matching_value} successfully deleted!"
 
