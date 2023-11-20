@@ -11,9 +11,21 @@ SQL_command LOAD DATA order_items /Users/nickalarcon/Desktop/COS-3510_DMBS-Proje
 SQL_command CREATE TABLE orders (id INT NOT NULL, user_id INT NOT NULL, PRIMARY KEY (id));
 SQL_command LOAD DATA orders /Users/nickalarcon/Desktop/COS-3510_DMBS-Project/COSC-3510_DBMS_Project/test_data3.csv
 
-## Not using for test
-## CREATE TABLE Orders (OrderID INT PRIMARY KEY, OrderDate DATE, NewCustomerID INT, NewCustomerName VARCHAR(255), FOREIGN KEY (NewCustomerID, NewCustomerName) REFERENCES Customers(CustomerID, CustomerName));
-## Not using for test
 
 SQL_command SELECT o.user_id, i.order_id, i.sushi_id FROM orders o, order_items i WHERE o.id = i.order_id ORDER BY i.sushi_id DESC
 SQL_command SELECT o.user_id, SUM(s.price) AS price FROM orders o JOIN order_items i ON o.id = i.order_id JOIN sushi s ON i.sushi_id = s.id GROUP BY o.user_id
+
+## Demo Test Data
+SQL_command CREATE DATABASE Test1
+
+SQL_command CREATE TABLE Rel-i-1-1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel-i-1-1000 Test_files/Rel-i-1-1000.csv
+
+SQL_command CREATE TABLE Rel-i-1-10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel-i-1-10000 Test_files/Rel-i-1-10000.csv
+
+SQL_command CREATE TABLE Rel-i-i-1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel-i-i-1000 Test_files/Rel-i-i-1000.csv
+
+SQL_command CREATE TABLE Rel-i-i-10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel-i-i-10000 Test_files/Rel-i-i-10000.csv
