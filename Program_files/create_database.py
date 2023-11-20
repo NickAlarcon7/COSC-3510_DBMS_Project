@@ -364,6 +364,12 @@ class Database:
         if not table:
             return "Table is empty!"
 
+        # if assignments is not a dictionary, then raise error
+        if not isinstance(assignments, dict) or assignments.items() is None:
+            raise ValueError(
+                f"Invalid SET: {assignments}. Currently supported format: UPDATE EMPLOYEE SET salary = 150.00 WHERE name = 'John'"
+            )
+
         # Extract column and matching value using items()
         for key, value in assignments.items():
             set_column = key

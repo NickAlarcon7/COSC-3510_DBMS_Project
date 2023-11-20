@@ -209,7 +209,7 @@ def sqlglot_execute(
     logger.debug("Logical Plan: %s", plan)
 
     now = time.time()
-    if join_algorithm is "merge":
+    if join_algorithm == "merge":
         result = MergeJoinPythonExecutor(tables=tables_).execute(plan)
     else:
         result = DefaultPythonExecutor(tables=tables_).execute(plan)
