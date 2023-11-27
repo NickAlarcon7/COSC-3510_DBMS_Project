@@ -10,7 +10,7 @@
 
 - A SQL parser: use mo-sql to identify CREATE TABLE statements. For column data type, we explicitly support INT/INTEGER, FLOAT, DECIMAL, BOOLEAN, VARCHAR. Everything else is treated as string. We cannot enforce the length of VARCHAR since we treat it as string.
 - An indexing structure: a BTrees.OOBTree with single attribute primary key as key and a tuple as value (row of data). We use the indexing structure to check for duplicates when inserting data. We mirror the IGNORE keyword behavior in MySQL by skipping duplicate rows. Since multi-attribute primary key is not indexed, we cannot check for primary key duplicates. However, we still check if a duplicate row exists in the table before inserting.
-- A query optimizer: use sqlglot to optimize query
+- A query optimizer: use sqlglot to optimize query. While we don't explicitly reorder conjuctive and disjunctive conditions, using index for equality condition implicitly reorders the conditions since we only execute query on the indexed tuple.
 - An execution engine: wrap sqlglot executor with index support
 
 **Storage Architecture:**
@@ -71,6 +71,7 @@
 - > **SELECT column_name FROM table_name WHERE column_name = value** -
   > INDEX SUPPORT: If selecting with a where clause from a single table that has a single attribute primary key, create a temp table with the tuple(s) from the indexing structure and feed it to query engine. Detect equality condition in WHERE clause and support multiple equality conditions connected with OR, AND. If one side of OR is indexed and the other side is not, the temp table is the original table because we cannot create a temp table with only the indexed tuple.
   > JOIN OPTIMIZER: If ordering by one of the joining condition, then use merge join. If the size of one table is less than 100, and the size of the other table is less than 10 times the size of the smaller table, then use nested loop join. Otherwise, defaults to hash join.
+- > **Print_Tables** - When joining tables with columns of same name, such column must be given an alias. Otherwise, prettytable will return an error: Field names must be unique.
 
 ## TODO:
 
