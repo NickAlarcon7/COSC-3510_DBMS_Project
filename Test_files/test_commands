@@ -57,3 +57,27 @@ SQL_command SELECT i_1.a, i_i.e FROM Rel_i_1_1000 i_1 JOIN Rel_i_i_1000 i_i ON i
 SQL_command SELECT * FROM Rel_i_1_1000 s_1 RIGHT JOIN Rel_i_1_10000 l_1 ON s_1.a = l_1.c
 SQL_command SELECT * FROM Rel_i_1_10000 l_1 LEFT JOIN Rel_i_1_1000 s_1 ON s_1.a = l_1.c WHERE l_1.c >
  9995
+-- Tuple Manipulation operators
+SQL_command INSERT INTO Rel_i_i_1000 VALUES (1001,1001)
+SQL_command SELECT * FROM Rel_i_i_1000 WHERE e > 995
+SQL_command INSERT INTO Rel_i_i_1000 VALUES (1001,1001)
+SQL_command INSERT INTO Rel_i_i_1000 VALUES (1001,1002)
+
+SQL_command UPDATE Rel_i_1_1000 SET b = 2 WHERE a = 2
+SQL_command SELECT * FROM Rel_i_1_1000 WHERE a < 5
+SQL_command UPDATE Rel_i_1_1000 SET b = 2
+SQL_command SELECT * FROM Rel_i_1_1000 WHERE a < 5
+
+SQL_command DELETE FROM Rel_i_i_10000 WHERE g = 4
+SQL_command SELECT * FROM Rel_i_i_10000 WHERE g < 6
+SQL_command DELETE FROM Rel_i_i_10000
+SQL_command SELECT * FROM Rel_i_i_10000
+
+-- Drop Table
+Print_Schemas
+SQL_command DROP TABLE Rel_i_i_10000
+Print_Schemas
+
+-- Switch Database
+Exit
+SQL_command USE Test2
