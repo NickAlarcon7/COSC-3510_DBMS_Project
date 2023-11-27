@@ -1,4 +1,5 @@
 import cmd
+import time
 from CustomStyle import CustomStyle
 from mo_sql_parsing import parse
 from prompt_toolkit.lexers import PygmentsLexer
@@ -461,7 +462,10 @@ class DatabaseCLI(cmd.Cmd):
             self.console.print("Enter your QUERY command:", style=deep_red_style)
             line = input()
         try:
+            before = time.time()
             results = execute_query(f"""{line}""", self.current_database)
+            after = time.time()
+
             if results:
                 table = PrettyTable()
                 table.field_names = results.columns
@@ -477,6 +481,7 @@ class DatabaseCLI(cmd.Cmd):
 
                 # Print the table with blue color
                 print(blue_start + str(table) + reset)
+                print(f"Query finished in: {after - before:.5f}s")
                 self.console.print(
                     "\nQuery executed successfully.", style=bright_green_style
                 )

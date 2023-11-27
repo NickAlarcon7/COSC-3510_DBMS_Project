@@ -18,14 +18,30 @@ SQL_command SELECT o.user_id, SUM(s.price) AS price FROM orders o JOIN order_ite
 ## Demo Test Data
 SQL_command CREATE DATABASE Test1
 
-SQL_command CREATE TABLE Rel-i-1-1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
-SQL_command LOAD DATA Rel-i-1-1000 Test_files/Rel-i-1-1000.csv
+SQL_command CREATE TABLE Rel_i_1_1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel_i_1_1000 ../Test_files/Rel-i-1-1000.csv
 
-SQL_command CREATE TABLE Rel-i-1-10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
-SQL_command LOAD DATA Rel-i-1-10000 Test_files/Rel-i-1-10000.csv
+SQL_command CREATE TABLE Rel_i_1_10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel_i_1_10000 ../Test_files/Rel-i-1-10000.csv
 
-SQL_command CREATE TABLE Rel-i-i-1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
-SQL_command LOAD DATA Rel-i-i-1000 Test_files/Rel-i-i-1000.csv
+SQL_command CREATE TABLE Rel_i_i_1000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel_i_i_1000 ../Test_files/Rel-i-i-1000.csv
 
-SQL_command CREATE TABLE Rel-i-i-10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
-SQL_command LOAD DATA Rel-i-i-10000 Test_files/Rel-i-i-10000.csv
+SQL_command CREATE TABLE Rel_i_i_10000 (column1 INT NOT NULL, column2 INT NOT NULL, PRIMARY KEY (column1));
+SQL_command LOAD DATA Rel_i_i_10000 ../Test_files/Rel-i-i-10000.csv
+
+Canned Queries
+-- A single aggregation operator 
+SQL_command SELECT MIN(column1) AS min_column1 FROM Rel_i_1_10000
+SQL_command SELECT MAX(column2) AS max_column2 FROM Rel_i_i_10000
+SQL_command SELECT SUM(column2) AS sum_column2 FROM Rel_i_1_10000
+SQL_command SELECT AVG(column1) AS avg_column1 FROM Rel_i_i_10000
+-- Two-clause logical conjunction (AND) and disjunction (OR)
+SQL_command SELECT * FROM Rel_i_1_10000 WHERE column1 > 6000 AND column1 < 6010
+SQL_command SELECT * FROM Rel_i_i_10000 WHERE column2 > 9995 OR column1 < 5
+-- Single attribute primary key
+SQL_command SELECT * FROM Rel_i_i_10000 WHERE column2 = 10000 OR column2 = 5000
+SQL_command SELECT * FROM Rel_i_i_10000 WHERE column1 = 10000 OR column1 = 5000
+-- Conjunctive and disjunctive condition ordering
+SQL_command SELECT * FROM Rel_i_1_10000 WHERE column2 = 1 AND column1 = 1
+SQL_command SELECT * FROM Rel_i_1_10000 WHERE column1 = 1 AND column2 = 1

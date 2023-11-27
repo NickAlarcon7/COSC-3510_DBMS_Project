@@ -1,4 +1,5 @@
 import csv
+import time
 from BTrees.OOBTree import OOBTree
 from decimal import Decimal, getcontext
 from prettytable import PrettyTable
@@ -11,6 +12,8 @@ class Database:
         self.table_schemas = {}
 
     def create_table(self, table_definition) -> str:
+        now = time.time()
+
         table_name = table_definition["name"]
         if table_name in self.tables:
             raise ValueError(f"Table {table_name} already exists!")
@@ -21,6 +24,8 @@ class Database:
         schema = self._create_schema(table_definition)
         print(f"Schema for {table_name}: {schema}")
         self.table_schemas[table_name] = schema
+
+        print(f"Table created in: {time.time() - now:.5f}s")
 
         return table_name
 
@@ -123,6 +128,8 @@ class Database:
         return count
 
     def load_from_csv(self, table_name, csv_filename):
+        now = time.time()
+
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
 
@@ -148,6 +155,8 @@ class Database:
                 )
 
             self._populate_table_from_csv(reader, table_name)
+
+        print(f"Table loaded in: {time.time() - now:.5f}s")
 
     def _populate_table_from_csv(self, reader, table_name):
         table = self.tables[table_name]
@@ -256,6 +265,8 @@ class Database:
         print(blue_start + str(table) + reset)
 
     def insert(self, table_name, values):
+        now = time.time()
+
         if "select" not in values:
             raise ValueError(
                 f"Invalid values: {values}. Currently supported format: INSERT INTO EMPLOYEE VALUES (1, 'John', 150.00, 5)"
@@ -309,7 +320,11 @@ class Database:
         # add new_row to the table
         table.append(new_row)
 
+        print(f"Row inserted in: {time.time() - now:.5f}s")
+
     def delete(self, table_name, where_clause):
+        now = time.time()
+
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
         table = self.tables[table_name]
@@ -322,6 +337,8 @@ class Database:
             self.tables[table_name] = []
             if table_name in self.indexing_structures:
                 self.indexing_structures[table_name].clear()
+
+            print(f"Table cleared in: {time.time() - now:.5f}s")
             return "All rows successfully deleted!"
 
         if "eq" not in where_clause:
@@ -353,9 +370,12 @@ class Database:
             else:
                 i += 1
 
+        print(f"Row deleted in: {time.time() - now:.5f}s")
         return f"Row with {column_name} = {matching_value} successfully deleted!"
 
     def update(self, table_name, assignments, where_clause):
+        now = time.time()
+
         if table_name not in self.tables:
             raise ValueError(f"Table {table_name} does not exist!")
         table = self.tables[table_name]
@@ -387,6 +407,8 @@ class Database:
         if where_clause is None:
             for row in table:
                 row[set_column] = set_value
+
+            print(f"Table updated in: {time.time() - now:.5f}s")
             return f"All rows successfully updated!"
 
         if "eq" not in where_clause:
@@ -415,6 +437,7 @@ class Database:
                         set_column
                     ] = set_value
 
+        print(f"Row updated in: {time.time() - now:.5f}s")
         return f"Successfully updated row with {set_column} = {set_value}"
 
     def parse_where(self, where_clause):
@@ -435,7 +458,11 @@ class Database:
         return column_name, matching_value
 
     def drop_table(self, table_name):
+        now = time.time()
+
         del self.tables[table_name]
         del self.table_schemas[table_name]
         if table_name in self.indexing_structures:
             del self.indexing_structures[table_name]
+
+        print(f"Table dropped in: {time.time() - now:.5f}s")

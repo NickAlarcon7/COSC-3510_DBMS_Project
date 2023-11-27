@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 import typing as t
 
 from mo_sql_parsing import parse
@@ -38,7 +37,9 @@ def execute_query(query, database):
     # if query joins two tables and orders by one of the joining condiiton, then use merge join
     join_algorithm = identify_join_algorithm(parsed_query)
 
-    return sqlglot_execute(query, tables=tables, join_algorithm=join_algorithm)
+    result = sqlglot_execute(query, tables=tables, join_algorithm=join_algorithm)
+
+    return result
 
 
 def identify_join_algorithm(parsed_query):
@@ -127,7 +128,7 @@ def identify_available_indexes(parsed_query, database):
                 table_name,
             )
             # if only one side of "or" clause is in index, then set temp_table to selected_table
-            if len(temp_table[table_name]) == 1:
+            if temp_table and len(temp_table[table_name]) == 1:
                 temp_table[table_name] = selected_table
 
         elif "and" in where_clause:
@@ -139,7 +140,9 @@ def identify_available_indexes(parsed_query, database):
                 table_name,
             )
         else:
-            temp_table = selected_table
+            temp_table = {
+                table_name: selected_table,
+            }
 
     # if temp_table exists, then set tables to temp_table
     if temp_table:
@@ -198,24 +201,22 @@ def sqlglot_execute(
     ):
         raise ExecuteError("Tables must support the same table args as schema")
 
-    now = time.time()
     expression = optimize(sql, schema, leave_tables_isolated=True, dialect=read)
 
-    logger.debug("Optimization finished: %f", time.time() - now)
-    logger.debug("Optimized SQL: %s", expression.sql(pretty=True))
+    # logger.debug("Optimization finished: %f", time.time() - now)
+    # logger.debug("Optimized SQL: %s", expression.sql(pretty=True))
 
     plan = Plan(expression)
 
     logger.debug("Logical Plan: %s", plan)
 
-    now = time.time()
+    # now = time.time()
     if join_algorithm == "merge":
         result = MergeJoinPythonExecutor(tables=tables_).execute(plan)
     else:
         result = DefaultPythonExecutor(tables=tables_).execute(plan)
 
     print()
-    print(f"Query finished in: {time.time() - now:.5f}s")
 
     return result
 
@@ -229,7 +230,7 @@ def parse_conjunction_for_indexing(
     # if there is one eq element in the list, then call fetch_index with that element
     if len(conjunction_clause) == 1:
         temp_table = fetch_index(
-            conjunction_clause[0],
+            conjunction_clause[0]["eq"],
             selected_indexing_structure,
             selected_schema,
             table_name,
